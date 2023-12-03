@@ -1,0 +1,79 @@
+<div class="container-fluid">
+    <div class="row">
+        <div class="col text-center">Insert Title, Save, and Upload stuff here</div>
+    </div>
+    <div class="row">
+        <div class="col-2 text-center">
+            <mat-accordion>
+                <mat-expansion-panel>
+                    <mat-expansion-panel-header>
+                        <mat-panel-title>Modules</mat-panel-title>
+                        <mat-panel-description>Click to Add</mat-panel-description>
+                    </mat-expansion-panel-header>
+                    <button mat-button>Slider</button>
+                    <button mat-button>Spinner</button>
+                    <button mat-button>Text</button>
+                </mat-expansion-panel>
+                <mat-expansion-panel>
+                    <mat-expansion-panel-header>
+                        <mat-panel-title>Prefabs</mat-panel-title>
+                        <mat-panel-description>Click to Add</mat-panel-description>
+                    </mat-expansion-panel-header>
+                    <button mat-button>Spell Slots</button>
+                    <button mat-button>Life Counter</button>
+                    <button mat-button>Character Level</button>
+                </mat-expansion-panel>
+            </mat-accordion>
+        </div>
+        <div class="col-8"><div id="svgContainer"></div></div>
+        <div class="col-2 text-center">
+            <mat-card>
+                <h1 class="text-center">3D Printing Options</h1>
+                <h4 class="text-center">Dimensions in Millimeters</h4>
+                    <form [formGroup]="printOptionsForm">
+                        <mat-form-field>
+                            <mat-label>Magnet Diameter</mat-label>
+                            <input matInput type="number" formControlName="magnetDiameter">
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Magnet Height</mat-label>
+                            <input matInput type="number" formControlName="magnetHeight">
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Magnet Gap Width</mat-label>
+                            <mat-hint>Sets magnet fit. Leave room for glue!</mat-hint>
+                            <input matInput type="number" formControlName="magnetGapWidth">
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Minimum Wall Thickness</mat-label>
+                            <input matInput type="number" formControlName="minWallWidth">
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Text Printing</mat-label>
+                            <mat-select type="number" formControlName="textPrintOpt">
+                                <mat-option [value]="1">Print Text in Same File</mat-option>
+                                <mat-option [value]="2">Print Text in Separate File</mat-option>
+                                <mat-option [value]="3">Engrave Text (May result in thicker print)</mat-option>
+                            </mat-select>
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Print Bed Width</mat-label>
+                            <input matInput type="number" formControlName="bedDimensionX">
+                        </mat-form-field>
+                        <mat-form-field>
+                            <mat-label>Print Bed Length</mat-label>
+                            <input matInput type="number" formControlName="bedDimensionY">
+                        </mat-form-field>
+                        <!--<mat-form-field>
+                            <mat-label>Plastic Saver</mat-label>
+                            <mat-select type="number" formControlName="plasticSaver">
+                                <mat-option [value]="1">Print Rectangular</mat-option>
+                                <mat-option [value]="2">Print Convex Polygon</mat-option>
+                                <mat-option [value]="3">Remove as much plastic as possible with right angle corners</mat-option>
+                            </mat-select>
+                        </mat-form-field>-->
+                    </form>
+            </mat-card>
+        </div>
+    </div>
+</div>

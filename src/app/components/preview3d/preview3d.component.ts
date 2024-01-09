@@ -1,22 +1,32 @@
-import { AfterViewInit, Component, ElementRef, OnInit, ViewChild, Input } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnInit,
+  ViewChild,
+  Input,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import * as THREE from 'three';
 import { CSG } from '../../utils/CSGMesh';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Stats from 'three/examples/jsm/libs/stats.module';
+// import Stats from 'three/examples/jsm/libs/stats.module';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { saveAs } from 'file-saver';
-import {MatButtonModule} from '@angular/material/button';
+import { MatButtonModule } from '@angular/material/button';
+import { EditorData } from '../../interfaces/editor-data';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.json';
+import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 @Component({
   selector: 'app-preview3d',
   standalone: true,
   imports: [CommonModule, MatButtonModule],
   templateUrl: './preview3d.component.html',
-  styleUrl: './preview3d.component.scss'
+  styleUrl: './preview3d.component.scss',
 })
-
 export class Preview3dComponent implements OnInit, AfterViewInit {
-  
   @ViewChild('canvas')
   private canvasRef!: ElementRef;
 
@@ -28,32 +38,53 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   @Input() public size: number = 200;
 
-  @Input() public texture: string = "/assets/texture.jpg";
-
+  @Input() public texture: string = '/assets/texture.jpg';
 
   //* Stage Properties
 
-  @Input() public cameraZ: number = 400;
+  @Input() public cameraZ: number = 8000;
 
   @Input() public fieldOfView: number = 1;
 
-  @Input('nearClipping') public nearClippingPlane: number = 1;
+  @Input() public nearClippingPlane: number = 0.1;
 
-  @Input('farClipping') public farClippingPlane: number = 1000;
+  @Input() public farClippingPlane: number = 20000;
+
+  @Input() public editorData: EditorData = {
+    magnetDiameter: 2,
+    magnetHeight: 1,
+    partGapWidth: 0.15,
+    minWallWidth: 1.5,
+    textPrintOpt: 2,
+    bedDimensionX: 200,
+    bedDimensionY: 200,
+    derivedVals: {
+      sliderRadius: 1.15 + 2.5,
+      segmentLength: 2 + 0.3 + 4,
+      knobWidth: 2 + 0.3 + 4,
+      plateWidth: 6 * 6.3,
+    },
+    boundingBox: {
+      minX: 20,
+      minY: 20,
+      maxX: 141.8,
+      maxY: 141.8,
+    },
+  };
 
   //? Helper Properties (Private Properties);
 
   private camera!: THREE.PerspectiveCamera;
   private controls!: OrbitControls;
   private exporter: STLExporter = new STLExporter();
-  private exporterOptions = { binary: true};
+  private exporterOptions = { binary: true };
 
   private get canvas(): HTMLCanvasElement {
     return this.canvasRef.nativeElement;
   }
   private loader = new THREE.TextureLoader();
   private geometry = new THREE.BoxGeometry(1, 1, 1);
-  private material = new THREE.MeshBasicMaterial({ map: this.loader.load(this.texture) });
+  private material = new THREE.MeshBasicMaterial();
 
   private cube: THREE.Mesh = new THREE.Mesh(this.geometry, this.material);
 
@@ -82,64 +113,90 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     //* Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-    var light1 = new THREE.SpotLight(0xffffff, 100)
-light1.position.set(2.5, 5, 5)
-light1.angle = Math.PI / 4
-light1.penumbra = 0.5
-light1.castShadow = true
-light1.shadow.mapSize.width = 1024
-light1.shadow.mapSize.height = 1024
-light1.shadow.camera.near = 0.5
-light1.shadow.camera.far = 20
-this.scene.add(light1)
 
-var light2 = new THREE.SpotLight(0xffffff, 100)
-light2.position.set(-2.5, 5, 5)
-light2.angle = Math.PI / 4
-light2.penumbra = 0.5
-light2.castShadow = true
-light2.shadow.mapSize.width = 1024
-light2.shadow.mapSize.height = 1024
-light2.shadow.camera.near = 0.5
-light2.shadow.camera.far = 20
-this.scene.add(light2)
+    /*const light1 = new THREE.SpotLight(0xffffff, 100);
+    light1.position.set(2.5, 5, 5);
+    light1.angle = Math.PI / 4;
+    light1.penumbra = 0.5;
+    light1.castShadow = true;
+    light1.shadow.mapSize.width = 1024;
+    light1.shadow.mapSize.height = 1024;
+    light1.shadow.camera.near = 0.5;
+    light1.shadow.camera.far = 20;
+    this.scene.add(light1);
+
+    const light2 = new THREE.SpotLight(0xffffff, 100);
+    light2.position.set(-2.5, 5, 5);
+    light2.angle = Math.PI / 4;
+    light2.penumbra = 0.5;
+    light2.castShadow = true;
+    light2.shadow.mapSize.width = 1024;
+    light2.shadow.mapSize.height = 1024;
+    light2.shadow.camera.near = 0.5;
+    light2.shadow.camera.far = 20;
+    this.scene.add(light2); */
+    const light3 = new THREE.AmbientLight(0x404040); // soft white light
+    this.scene.add(light3);
+    const light4 = new THREE.DirectionalLight(0xffffff, 0.5);
+    this.scene.add(light4);
     //this.scene.add(this.cube);
-        //create a cube and sphere and intersect them
-        const cubeMesh = new THREE.Mesh(
-          new THREE.BoxGeometry(2, 2, 2),
-          new THREE.MeshStandardMaterial({ color: 0xff0000 })
-      )
-      const sphereMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(1.45, 64, 64),
-          new THREE.MeshStandardMaterial({ color: 0x0000ff })
-      )
-      cubeMesh.position.set(-5, 0, -6)
-      this.scene.add(cubeMesh)
-      sphereMesh.position.set(-2, 0, -6)
-      this.scene.add(sphereMesh)
-  
-      const cubeCSG = CSG.fromMesh(cubeMesh, 0)
-      const sphereCSG = CSG.fromMesh(sphereMesh, 1)
-  
-      const cubeSphereIntersectCSG = cubeCSG.intersect(sphereCSG)
-      const cubeSphereIntersectMesh = CSG.toMesh(
-          cubeSphereIntersectCSG,
-          new THREE.Matrix4(),
-          [cubeMesh.material, sphereMesh.material]
-      )
-      cubeSphereIntersectMesh.position.set(-2.5, 0, -3)
-      this.scene.add(cubeSphereIntersectMesh)
+    //create a cube and sphere and intersect them
+    this.addBase();
+    const cubeMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 2),
+      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+    );
+    const sphereMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1.45, 64, 64),
+      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+    );
+    const xMarker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
+      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+    );
+    xMarker.position.set(50, 0, 0);
+    xMarker.rotation.set(0, 0, (90 * Math.PI) / 180);
+    this.scene.add(xMarker);
+    const yMarker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
+      new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+    );
+    yMarker.position.set(0, 50, 0);
+    this.scene.add(yMarker);
+    const zMarker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
+      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+    );
+    zMarker.position.set(0, 0, 50);
+    zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
+    this.scene.add(zMarker);
+    cubeMesh.position.set(-5, 0, -6);
+    //this.scene.add(cubeMesh);
+    sphereMesh.position.set(-2, 0, -6);
+    //this.scene.add(sphereMesh);
+
+    const cubeCSG = CSG.fromMesh(cubeMesh, 0);
+    const sphereCSG = CSG.fromMesh(sphereMesh, 1);
+
+    const cubeSphereIntersectCSG = cubeCSG.intersect(sphereCSG);
+    const cubeSphereIntersectMesh = CSG.toMesh(
+      cubeSphereIntersectCSG,
+      new THREE.Matrix4(),
+      [cubeMesh.material, sphereMesh.material],
+    );
+    cubeSphereIntersectMesh.position.set(-2.5, 0, -3);
+    this.scene.add(cubeSphereIntersectMesh);
     //*Camera
-    let aspectRatio = this.getAspectRatio();
+    const aspectRatio = this.getAspectRatio();
     this.camera = new THREE.PerspectiveCamera(
       this.fieldOfView,
       aspectRatio,
       this.nearClippingPlane,
-      this.farClippingPlane
-    )
-    this.camera.position.x = 0.5
-this.camera.position.y = 2
-this.camera.position.z = 400
+      this.farClippingPlane,
+    );
+    this.camera.position.x = 0.5;
+    this.camera.position.y = 8000;
+    this.camera.position.z = 8000;
   }
 
   private getAspectRatio() {
@@ -147,29 +204,32 @@ this.camera.position.z = 400
   }
 
   /**
- * Start the rendering loop
- *
- * @private
- * @memberof EditorComponent
- */
+   * Start the rendering loop
+   *
+   * @private
+   * @memberof EditorComponent
+   */
   private startRenderingLoop() {
     //* Renderer
     // Use canvas element in template
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas });
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      logarithmicDepthBuffer: true,
+    });
     this.renderer.setPixelRatio(devicePixelRatio);
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-
-    let component: Preview3dComponent = this;
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    //eslint-disable-next-line
+    const component: Preview3dComponent = this;
     (function render() {
       requestAnimationFrame(render);
       //component.animateCube();
-      component.controls.update()
+      component.controls.update();
       component.renderer.render(component.scene, component.camera);
-    }());
+    })();
   }
 
-  constructor() { }
+  constructor() {}
 
   ngOnInit(): void {
     window.addEventListener('resize', () => this.onWindowResize());
@@ -184,9 +244,214 @@ this.camera.position.z = 400
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
-  public outputSTL(){
+  public outputSTL() {
     const result = this.exporter.parse(this.scene, this.exporterOptions);
-    const blob = new Blob( [result], {type: 'text/plain'});
+    const blob = new Blob([result], { type: 'text/plain' });
     saveAs(blob, 'my-test.stl');
   }
+
+  private addBase() {
+    const modulesList = [
+      { type: 0, data: [2, 0, 20, 20] },
+      { type: 0, data: [3, 0, 40, 20] },
+      { type: 0, data: [4, 90, 20, 60] },
+      { type: 1, data: [100, 100] },
+      { type: 1, data: [100, 20] },
+      {
+        type: 2,
+        data: [
+          90,
+          60,
+          60,
+          'this is some text',
+          61.60463928222656,
+          9.04780632019,
+        ],
+      },
+    ];
+    const length =
+      this.editorData.boundingBox.maxX - this.editorData.boundingBox.minX + 20;
+    //base should consist of bottom layer, holes for magnets, and path for track/dials
+    //dial thickness will be magnetHeight + gapWidth + minWall
+    //plus 1 for wiggle room
+    const height =
+      (this.editorData.magnetHeight +
+        this.editorData.partGapWidth +
+        this.editorData.minWallWidth) *
+        2 +
+      1;
+    const depth =
+      this.editorData.boundingBox.maxY - this.editorData.boundingBox.minY + 20;
+    const geometry = new THREE.BoxGeometry(length, height, depth);
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    cube.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
+    this.scene.add(cube);
+    for (const module of modulesList) {
+      if (module['type'] === 0) {
+        const trackCube = this.addTrack(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          Number(module['data'][3]),
+        );
+        this.scene.add(trackCube);
+      } else if (module['type'] === 1) {
+        const dialCircle = this.addDialCircle(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+        );
+        this.scene.add(dialCircle);
+      } else if (module['type'] === 2) {
+        this.addText(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          module['data'][3] + '',
+          Number(module['data'][4]),
+          Number(module['data'][5]),
+        );
+      }
+    }
+  }
+
+  private addTrack(
+    length: number,
+    rotation: number,
+    translateX: number,
+    translateY: number,
+  ) {
+    const l = length * this.editorData.derivedVals.segmentLength + 2;
+    const w = this.editorData.derivedVals.sliderRadius + 2;
+    const h =
+      this.editorData.magnetHeight +
+      this.editorData.partGapWidth +
+      this.editorData.minWallWidth +
+      1;
+    let tL, tD, newX, newZ;
+    if (rotation === 0) {
+      //vertical
+      tL = w;
+      tD = l;
+      newX = translateX + w / 2;
+      newZ = translateY + l / 2;
+    } else {
+      tL = l;
+      tD = w;
+      newX = translateX + l / 2;
+      newZ = translateY + w / 2;
+    }
+    const geometry = new THREE.BoxGeometry(tL, h, tD);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    const trackCube = new THREE.Mesh(geometry, material);
+    trackCube.position.set(newX, -h / 2 + 1, newZ);
+    return trackCube;
+  }
+
+  private addDialCircle(translationX: number, translationY: number) {
+    const r = this.editorData.derivedVals.plateWidth / 2;
+    const h =
+      this.editorData.magnetHeight +
+      this.editorData.partGapWidth +
+      this.editorData.minWallWidth +
+      1;
+    const newX = translationX + r;
+    const newZ = translationY + r;
+    const geometry = new THREE.CylinderGeometry(r, r, h, 32);
+    const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const dialCircle = new THREE.Mesh(geometry, material);
+    dialCircle.position.set(newX, -h / 2 + 1, newZ);
+    return dialCircle;
+  }
+
+  private addText(
+    rotation: number,
+    translationX: number,
+    translationY: number,
+    inputText: string,
+    width: number,
+    height: number,
+  ) {
+    const h =
+      this.editorData.magnetHeight +
+      this.editorData.partGapWidth +
+      this.editorData.minWallWidth +
+      1;
+    const loader = new FontLoader();
+    const loadedFont = loader.parse(fontData);
+    const loadedFontBold = loader.parse(fontDataBold);
+    const geometry = new TextGeometry(inputText, {
+      font: loadedFont,
+      size: 8,
+      height: h,
+      curveSegments: 12,
+      bevelEnabled: false,
+    });
+    const geometryBold = new TextGeometry(inputText, {
+      font: loadedFontBold,
+      size: 8,
+      height: h,
+      curveSegments: 12,
+      bevelEnabled: false,
+    });
+    //const box = new THREE.Box3();
+    const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+    const myText = new THREE.Mesh(geometry, material);
+    myText.geometry.computeBoundingBox();
+    const bbox = myText.geometry.boundingBox;
+    console.log(bbox);
+    let xWidth, yWidth, zWidth;
+    if (bbox) {
+      xWidth = bbox?.max.x - bbox?.min.x;
+      yWidth = bbox?.max.y - bbox?.min.y;
+      zWidth = bbox?.max.z - bbox?.min.z;
+    } else {
+      xWidth = 1;
+      yWidth = 1;
+      zWidth = 1;
+    }
+    console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
+    const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
+    const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
+    this.scene.add(bboxBox);
+    const xScale = width / xWidth;
+    const yScale = height / yWidth;
+    myText.scale.set(xScale, yScale, 1);
+    //top of text is in the +y direction to start, readable from +z axis. Baseline left, rear most point is the origin.(matches an svg text or tspan element)
+    myText.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
+    myText.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
+    myText.position.set(translationX, -h / 2 + 1, translationY);
+    this.scene.add(myText);
+    const materialBold = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const myTextBold = new THREE.Mesh(geometryBold, materialBold);
+    myTextBold.geometry.computeBoundingBox();
+    const bboxBold = myTextBold.geometry.boundingBox;
+    console.log(bboxBold);
+    let xWidthBold, yWidthBold, zWidthBold;
+    if (bboxBold) {
+      xWidthBold = bboxBold?.max.x - bboxBold?.min.x;
+      yWidthBold = bboxBold?.max.y - bboxBold?.min.y;
+      zWidthBold = bboxBold?.max.z - bboxBold?.min.z;
+    } else {
+      xWidthBold = 1;
+      yWidthBold = 1;
+      zWidthBold = 1;
+    }
+    console.log(xWidthBold + ', ' + yWidthBold + ', ' + zWidthBold);
+    const boxGeoBold = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
+    const boxmaterialBold = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    const bboxBoxBold = new THREE.Mesh(boxGeoBold, boxmaterialBold);
+    this.scene.add(bboxBoxBold);
+    const xScaleBold = width / xWidthBold;
+    const yScaleBold = height / yWidthBold;
+    myTextBold.scale.set(xScaleBold, yScaleBold, 1);
+    //top of text is in the +y direction to start, readable from +z axis. Baseline left, rear most point is the origin.(matches an svg text or tspan element)
+    myTextBold.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
+    myTextBold.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
+    myTextBold.position.set(translationX, -h / 2 + 0.5, translationY);
+    this.scene.add(myTextBold);
+  }
+
+  //private addMagneticCylinder(length, width, translateX, translateY) {}
 }

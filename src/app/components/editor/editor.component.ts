@@ -8,9 +8,6 @@ import { D3containerComponent } from '../d3container/d3container.component';
   standalone: true,
   imports: [CommonModule, Preview3dComponent, D3containerComponent],
   templateUrl: './editor.component.html',
-  styleUrl: './editor.component.scss'
+  styleUrl: './editor.component.scss',
 })
-
-export class EditorComponent {
-
-}
+export class EditorComponent {}

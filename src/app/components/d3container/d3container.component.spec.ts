@@ -8,10 +8,9 @@ describe('D3containerComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [D3containerComponent]
-    })
-    .compileComponents();
-    
+      imports: [D3containerComponent],
+    }).compileComponents();
+
     fixture = TestBed.createComponent(D3containerComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

@@ -1,10 +1,25 @@
-<h1>Angular Router App</h1>
+<app-header></app-header>
 <nav>
   <ul>
-    <li><a routerLink="/editor" routerLinkActive="active" ariaCurrentWhenActive="page">First Component</a></li>
-    <li><a routerLink="/editor" routerLinkActive="active" ariaCurrentWhenActive="page">Second Component</a></li>
+    <li>
+      <a
+        routerLink="/editor"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+        >First Component</a
+      >
+    </li>
+    <li>
+      <a
+        routerLink="/editor"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+        >Second Component</a
+      >
+    </li>
   </ul>
 </nav>
 <!-- The routed views render in the <router-outlet>-->
 <router-outlet></router-outlet>
 
+<app-footer></app-footer>

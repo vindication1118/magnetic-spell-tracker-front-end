@@ -4,6 +4,7 @@ export interface EditorData {
   partGapWidth: number;
   minWallWidth: number;
   textPrintOpt: number;
+  textDepth: number;
   bedDimensionX: number;
   bedDimensionY: number;
   derivedVals: {
@@ -11,6 +12,7 @@ export interface EditorData {
     segmentLength: number;
     knobWidth: number;
     plateWidth: number;
+    plateHeight: number;
   };
   boundingBox: {
     minX: number;

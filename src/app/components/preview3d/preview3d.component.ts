@@ -56,6 +56,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     partGapWidth: 0.15,
     minWallWidth: 1.5,
     textPrintOpt: 2,
+    textDepth: 0.5,
     bedDimensionX: 200,
     bedDimensionY: 200,
     derivedVals: {
@@ -63,6 +64,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       segmentLength: 2 + 0.3 + 4,
       knobWidth: 2 + 0.3 + 4,
       plateWidth: 6 * 6.3,
+      plateHeight: 0.5 + 1.5 + 1,
     },
     boundingBox: {
       minX: 20,
@@ -322,7 +324,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     translateY: number,
   ) {
     const l = length * this.editorData.derivedVals.segmentLength + 2;
-    const w = this.editorData.derivedVals.sliderRadius + 2;
+    const w = this.editorData.derivedVals.sliderRadius * 2 + 2;
     const h =
       this.editorData.magnetHeight +
       this.editorData.partGapWidth +
@@ -379,16 +381,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       1;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
-    const loadedFontBold = loader.parse(fontDataBold);
     const geometry = new TextGeometry(inputText, {
       font: loadedFont,
-      size: 8,
-      height: h,
-      curveSegments: 12,
-      bevelEnabled: false,
-    });
-    const geometryBold = new TextGeometry(inputText, {
-      font: loadedFontBold,
       size: 8,
       height: h,
       curveSegments: 12,
@@ -423,34 +417,73 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     myText.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
     myText.position.set(translationX, -h / 2 + 1, translationY);
     this.scene.add(myText);
-    const materialBold = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const myTextBold = new THREE.Mesh(geometryBold, materialBold);
-    myTextBold.geometry.computeBoundingBox();
-    const bboxBold = myTextBold.geometry.boundingBox;
-    console.log(bboxBold);
-    let xWidthBold, yWidthBold, zWidthBold;
-    if (bboxBold) {
-      xWidthBold = bboxBold?.max.x - bboxBold?.min.x;
-      yWidthBold = bboxBold?.max.y - bboxBold?.min.y;
-      zWidthBold = bboxBold?.max.z - bboxBold?.min.z;
-    } else {
-      xWidthBold = 1;
-      yWidthBold = 1;
-      zWidthBold = 1;
+  }
+
+  //reusable params: magnet extrusion heights and y positions per layer
+  /*
+    {
+      all: {
+        magExtHeight: magnetHeight + 1
+      }
+      l1: {
+        layerBottomY: 0,
+        magExtY: someValue
+      },
+      l2: {
+        layerBottomY: layer1Thickness + 2,
+        magExtY: someValue related to magThick plus extra height
+
+      },
+      l3: {
+        layerBottomY: layer1Thickness + 2 + layer2Thickness + 2,
+        textbottomY: layerTop - text thickness?
+      }
     }
-    console.log(xWidthBold + ', ' + yWidthBold + ', ' + zWidthBold);
-    const boxGeoBold = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
-    const boxmaterialBold = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-    const bboxBoxBold = new THREE.Mesh(boxGeoBold, boxmaterialBold);
-    this.scene.add(bboxBoxBold);
-    const xScaleBold = width / xWidthBold;
-    const yScaleBold = height / yWidthBold;
-    myTextBold.scale.set(xScaleBold, yScaleBold, 1);
-    //top of text is in the +y direction to start, readable from +z axis. Baseline left, rear most point is the origin.(matches an svg text or tspan element)
-    myTextBold.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
-    myTextBold.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
-    myTextBold.position.set(translationX, -h / 2 + 0.5, translationY);
-    this.scene.add(myTextBold);
+  */
+  private createLayer1(){
+    //start with base, add rectangles with attached cylinders, do boolean difference
+  }
+
+  private addLayer1Slider(){
+
+  }
+
+  private addLayer1Dial(){
+
+  }
+
+  //No text
+
+  private createLayer2(){
+    //create slider pieces and dials, with engraved text and magnet holes underneath
+
+  }
+
+  //cylinder and rectangle for each slider, ezpz
+  private addLayer2Slider(){
+
+  }
+
+  private addLayer2Dial(){
+    //small tall cylinder, large flat cylinder, boolean difference magnet cylinders, engrave text
+  }
+
+  private createLayer3(){
+    //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
+
+  }
+
+  private addLayer3Slider(){
+    //window with rounded end caps
+  }
+
+  private addLayer3Dial(){
+    //hole for dial knob, window for dial numerals
+
+  }
+
+  private addLayer3Text(){
+    //boolean difference rectangle, union text
   }
 
   //private addMagneticCylinder(length, width, translateX, translateY) {}

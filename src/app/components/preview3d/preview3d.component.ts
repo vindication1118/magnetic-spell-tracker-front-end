@@ -346,9 +346,14 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const geometry = new THREE.BoxGeometry(tL, h, tD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
     const trackCube = new THREE.Mesh(geometry, material);
-    trackCube.position.set(newX, -h / 2 + 1, newZ);
+    trackCube.position.set(newX, -h / 2 + 6, newZ);
     return trackCube;
   }
+
+  private AddTrackRectMagCyl(){
+
+  }
+
 
   private addDialCircle(translationX: number, translationY: number) {
     const r = this.editorData.derivedVals.plateWidth / 2;

@@ -18,7 +18,7 @@ import { EditorData } from '../../interfaces/editor-data';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.json';
-import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
+//import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 @Component({
   selector: 'app-preview3d',
   standalone: true,
@@ -350,10 +350,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return trackCube;
   }
 
-  private AddTrackRectMagCyl(){
-
-  }
-
+  private AddTrackRectMagCyl() {}
 
   private addDialCircle(translationX: number, translationY: number) {
     const r = this.editorData.derivedVals.plateWidth / 2;
@@ -445,49 +442,40 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       }
     }
   */
-  private createLayer1(){
+  private createLayer1() {
     //start with base, add rectangles with attached cylinders, do boolean difference
   }
 
-  private addLayer1Slider(){
+  private addLayer1Slider() {}
 
-  }
-
-  private addLayer1Dial(){
-
-  }
+  private addLayer1Dial() {}
 
   //No text
 
-  private createLayer2(){
+  private createLayer2() {
     //create slider pieces and dials, with engraved text and magnet holes underneath
-
   }
 
   //cylinder and rectangle for each slider, ezpz
-  private addLayer2Slider(){
+  private addLayer2Slider() {}
 
-  }
-
-  private addLayer2Dial(){
+  private addLayer2Dial() {
     //small tall cylinder, large flat cylinder, boolean difference magnet cylinders, engrave text
   }
 
-  private createLayer3(){
+  private createLayer3() {
     //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
-
   }
 
-  private addLayer3Slider(){
+  private addLayer3Slider() {
     //window with rounded end caps
   }
 
-  private addLayer3Dial(){
+  private addLayer3Dial() {
     //hole for dial knob, window for dial numerals
-
   }
 
-  private addLayer3Text(){
+  private addLayer3Text() {
     //boolean difference rectangle, union text
   }
 

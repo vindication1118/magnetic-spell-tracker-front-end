@@ -78,37 +78,38 @@ export class D3containerComponent implements OnInit {
     }
   }
 
+  public parseTransform(transformString: string) {
+    const result = {
+      rotate: { a: 0 },
+      translate: { x: 0, y: 0 },
+      scale: { x: 1, y: 1 },
+    };
 
-    public parseTransform(transformString: string) {
-      const result = {
-          rotate: { a: 0 },
-          translate: { x: 0, y: 0 },
-          scale: { x: 1, y: 1 }
-      };
+    // Extract rotate value
+    const rotateMatch = transformString.match(/rotate\((\d+)\)/);
+    if (rotateMatch) {
+      result.rotate.a = parseFloat(rotateMatch[1]);
+    }
 
-      // Extract rotate value
-      const rotateMatch = transformString.match(/rotate\((\d+)\)/);
-      if (rotateMatch) {
-          result.rotate.a = parseFloat(rotateMatch[1]);
-      }
+    // Extract translate values
+    const translateMatch = transformString.match(
+      /translate\((-?\d+(?:\.\d+)?)[ ,]+(-?\d+(?:\.\d+)?)\)/,
+    );
+    if (translateMatch) {
+      result.translate.x = parseFloat(translateMatch[1]);
+      result.translate.y = parseFloat(translateMatch[2]);
+    }
 
-      // Extract translate values
-      const translateMatch = transformString.match(/translate\((-?\d+(?:\.\d+)?)[ ,]+(-?\d+(?:\.\d+)?)\)/);
-      if (translateMatch) {
-          result.translate.x = parseFloat(translateMatch[1]);
-          result.translate.y = parseFloat(translateMatch[2]);
-      }
+    // Extract scale values (optional)
+    const scaleMatch = transformString.match(
+      /scale\((-?\d+(?:\.\d+)?)[ ,]+(-?\d+(?:\.\d+)?)\)/,
+    );
+    if (scaleMatch) {
+      result.scale.x = parseFloat(scaleMatch[1]);
+      result.scale.y = parseFloat(scaleMatch[2]);
+    }
 
-      // Extract scale values (optional)
-      const scaleMatch = transformString.match(/scale\((-?\d+(?:\.\d+)?)[ ,]+(-?\d+(?:\.\d+)?)\)/);
-      if (scaleMatch) {
-          result.scale.x = parseFloat(scaleMatch[1]);
-          result.scale.y = parseFloat(scaleMatch[2]);
-      }
-
-      return result;
-
-
+    return result;
   }
 
   public initSVGEditorCanvas() {
@@ -706,8 +707,14 @@ export class D3containerComponent implements OnInit {
         textRadius = 2 * this.knobWidth - 1.5;
       const xVal = textRadius * Math.cos(theta);
       const yVal = textRadius * Math.sin(theta);
-      const magXVal = (this.plateWidth / 2 - (1.5 + this.printOptionsForm.controls['magnetDiameter'].value / 2)) * Math.cos(theta); //x and y are circle center, want to set mag edge minWallWidth inside dial edge
-      const magYVal = (this.plateWidth / 2 - (1.5 + this.printOptionsForm.controls['magnetDiameter'].value / 2)) * Math.sin(theta); //x and y are circle center
+      const magXVal =
+        (this.plateWidth / 2 -
+          (1.5 + this.printOptionsForm.controls['magnetDiameter'].value / 2)) *
+        Math.cos(theta); //x and y are circle center, want to set mag edge minWallWidth inside dial edge
+      const magYVal =
+        (this.plateWidth / 2 -
+          (1.5 + this.printOptionsForm.controls['magnetDiameter'].value / 2)) *
+        Math.sin(theta); //x and y are circle center
       dialGroup
         .append('text')
         .attr('x', xVal)
@@ -836,30 +843,4 @@ export class D3containerComponent implements OnInit {
       });
     }
   }
-
-  /**public animate(): void {
-  window.addEventListener('DOMContentLoaded', () => {
-    this.render();
-  });
-
-  window.addEventListener('resize', () => {
-    this.resize();
-  // We have to run this outside angular zones,
-  // because it could trigger heavy changeDetection cycles.
-  this.ngZone.runOutsideAngular(() => {
-    window.addEventListener('DOMContentLoaded', () => {
-      this.render();
-    });
-
-    window.addEventListener('resize', () => {
-      this.resize();
-    });
-  });
-}
-
-public render() {
-  requestAnimationFrame(() => {
-  this.frameId = requestAnimationFrame(() => {
-    this.render();
-  }); **/
 }

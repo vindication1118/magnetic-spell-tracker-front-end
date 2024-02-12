@@ -5,6 +5,7 @@ import {
   OnInit,
   ViewChild,
   Input,
+  NgZone,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import * as THREE from 'three';
@@ -29,6 +30,7 @@ import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.jso
 export class Preview3dComponent implements OnInit, AfterViewInit {
   @ViewChild('canvas')
   private canvasRef!: ElementRef;
+  private frameID: number | null = null;
 
   //* Cube Properties
 
@@ -93,6 +95,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private renderer!: THREE.WebGLRenderer;
 
   private scene!: THREE.Scene;
+  private layer1Height!: number;
+
+  constructor(private ngZone: NgZone) {}
 
   /**
    *Animate the cube
@@ -143,7 +148,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.scene.add(light4);
     //this.scene.add(this.cube);
     //create a cube and sphere and intersect them
-    this.addBase();
+    this.addBaseLayer1();
     const cubeMesh = new THREE.Mesh(
       new THREE.BoxGeometry(2, 2, 2),
       new THREE.MeshStandardMaterial({ color: 0xff0000 }),
@@ -223,15 +228,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     //eslint-disable-next-line
     const component: Preview3dComponent = this;
-    (function render() {
-      requestAnimationFrame(render);
-      //component.animateCube();
-      component.controls.update();
-      component.renderer.render(component.scene, component.camera);
-    })();
+    this.ngZone.runOutsideAngular(() => {
+      (function render() {
+        component.frameID = requestAnimationFrame(render);
+        //component.animateCube();
+        component.controls.update();
+        component.renderer.render(component.scene, component.camera);
+      })();
+    });
   }
-
-  constructor() {}
 
   ngOnInit(): void {
     window.addEventListener('resize', () => this.onWindowResize());
@@ -242,9 +247,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.startRenderingLoop();
   }
   private onWindowResize(): void {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.ngZone.runOutsideAngular(() => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   }
   public outputSTL() {
     const result = this.exporter.parse(this.scene, this.exporterOptions);
@@ -252,7 +259,33 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     saveAs(blob, 'my-test.stl');
   }
 
-  private addBase() {
+  /**public animate(): void {
+  window.addEventListener('DOMContentLoaded', () => {
+    this.render();
+  });
+
+  window.addEventListener('resize', () => {
+    this.resize();
+  // We have to run this outside angular zones,
+  // because it could trigger heavy changeDetection cycles.
+  this.ngZone.runOutsideAngular(() => {
+    window.addEventListener('DOMContentLoaded', () => {
+      this.render();
+    });
+
+    window.addEventListener('resize', () => {
+      this.resize();
+    });
+  });
+}
+
+public render() {
+  requestAnimationFrame(() => {
+  this.frameId = requestAnimationFrame(() => {
+    this.render();
+  }); **/
+
+  private addBaseLayer1() {
     const modulesList = [
       { type: 0, data: [2, 0, 20, 20] },
       { type: 0, data: [3, 0, 40, 20] },
@@ -272,32 +305,45 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       },
     ];
     const length =
-      this.editorData.boundingBox.maxX - this.editorData.boundingBox.minX + 20;
+      this.editorData.boundingBox.maxX +
+      20 -
+      this.editorData.boundingBox.minX +
+      20;
     //base should consist of bottom layer, holes for magnets, and path for track/dials
-    //dial thickness will be magnetHeight + gapWidth + minWall
+    //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
+    //but also add textDepth
     //plus 1 for wiggle room
     const height =
-      (this.editorData.magnetHeight +
-        this.editorData.partGapWidth +
-        this.editorData.minWallWidth) *
-        2 +
+      this.editorData.magnetHeight +
+      (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
+      this.editorData.textDepth +
       1;
+    this.layer1Height = height;
     const depth =
-      this.editorData.boundingBox.maxY - this.editorData.boundingBox.minY + 20;
+      this.editorData.boundingBox.maxY +
+      20 -
+      this.editorData.boundingBox.minY +
+      20;
     const geometry = new THREE.BoxGeometry(length, height, depth);
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    cube.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
-    this.scene.add(cube);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ff00,
+    });
+    material.setValues({ opacity: 0.5, transparent: true });
+    const layer1Base = new THREE.Mesh(geometry, material);
+    layer1Base.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
+    layer1Base.updateMatrix();
+    let l1BCSG = CSG.fromMesh(layer1Base, 0);
+    let moduleIndex = 1;
     for (const module of modulesList) {
       if (module['type'] === 0) {
-        const trackCube = this.addTrack(
+        const track = this.addSliderLayer1(
           Number(module['data'][0]),
           Number(module['data'][1]),
           Number(module['data'][2]),
           Number(module['data'][3]),
         );
-        this.scene.add(trackCube);
+        const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
+        l1BCSG = l1BCSG.subtract(trackCubeCSG);
       } else if (module['type'] === 1) {
         const dialCircle = this.addDialCircle(
           Number(module['data'][0]),
@@ -314,43 +360,115 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           Number(module['data'][5]),
         );
       }
+      moduleIndex++;
     }
+    const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+    this.scene.add(layer1);
   }
 
-  private addTrack(
+  private addSliderLayer1(
     length: number,
     rotation: number,
     translateX: number,
     translateY: number,
   ) {
-    const l = length * this.editorData.derivedVals.segmentLength + 2;
-    const w = this.editorData.derivedVals.sliderRadius * 2 + 2;
+    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const w = this.editorData.derivedVals.sliderRadius * 2 + 2; //extra 1 on each end
     const h =
-      this.editorData.magnetHeight +
       this.editorData.partGapWidth +
       this.editorData.minWallWidth +
-      1;
+      this.editorData.textDepth +
+      1; // want this sticking out of surface of base cube by 1
     let tL, tD, newX, newZ;
+    const cylArr = [],
+      //bottom of track cube minus half of height plus 1
+      bottomOfTrackCube = -h + 1,
+      magYTranslate =
+        1 +
+        bottomOfTrackCube -
+        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
     if (rotation === 0) {
       //vertical
       tL = w;
       tD = l;
       newX = translateX + w / 2;
       newZ = translateY + l / 2;
+      const firstCylZ =
+        1 + translateY + this.editorData.derivedVals.segmentLength / 2;
+      for (let i = 0; i < length; i++) {
+        cylArr.push(
+          this.addMagCyl(
+            newX,
+            magYTranslate,
+            firstCylZ + i * this.editorData.derivedVals.segmentLength,
+          ),
+        );
+      }
     } else {
       tL = l;
       tD = w;
+      const firstCylX =
+        1 + translateX + this.editorData.derivedVals.segmentLength / 2;
       newX = translateX + l / 2;
       newZ = translateY + w / 2;
+      for (let i = 0; i < length; i++) {
+        cylArr.push(
+          this.addMagCyl(
+            firstCylX + i * this.editorData.derivedVals.segmentLength,
+            magYTranslate,
+            newZ,
+          ),
+        );
+      }
     }
+    /*cubeMesh.position.set(-5, 0, -6);
+    //this.scene.add(cubeMesh);
+    sphereMesh.position.set(-2, 0, -6);
+    //this.scene.add(sphereMesh);
+
+    const cubeCSG = CSG.fromMesh(cubeMesh, 0);
+    const sphereCSG = CSG.fromMesh(sphereMesh, 1);
+
+    const cubeSphereIntersectCSG = cubeCSG.intersect(sphereCSG);
+    const cubeSphereIntersectMesh = CSG.toMesh(
+      cubeSphereIntersectCSG,
+      new THREE.Matrix4(),
+      [cubeMesh.material, sphereMesh.material],
+    );
+    cubeSphereIntersectMesh.position.set(-2.5, 0, -3); */
     const geometry = new THREE.BoxGeometry(tL, h, tD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    material.setValues({ opacity: 0.5, transparent: true });
     const trackCube = new THREE.Mesh(geometry, material);
-    trackCube.position.set(newX, -h / 2 + 6, newZ);
-    return trackCube;
+    trackCube.position.set(newX, -h / 2 + 1, newZ);
+    trackCube.updateMatrix();
+    let trackCSG = CSG.fromMesh(trackCube, 0);
+    let cylIndex = 1;
+    for (const cyl of cylArr) {
+      const cylCSG = CSG.fromMesh(cyl, cylIndex);
+      trackCSG = trackCSG.union(cylCSG);
+      cylIndex++;
+    }
+    const trackMesh = CSG.toMesh(
+      trackCSG,
+      trackCube.matrix,
+      trackCube.material,
+    );
+    return trackMesh;
   }
 
-  private AddTrackRectMagCyl() {}
+  private addMagCyl(tX: number, tY: number, tZ: number) {
+    const r = this.editorData.magnetDiameter / 2 + this.editorData.partGapWidth;
+    const h = this.editorData.magnetHeight + this.editorData.partGapWidth + 1;
+    const radialSegments = 32; //maybe overkill
+    const geometry = new THREE.CylinderGeometry(r, r, h, radialSegments);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    const cylinder = new THREE.Mesh(geometry, material);
+    cylinder.position.set(tX, tY, tZ);
+    cylinder.updateMatrix();
+    //this.scene.add(cylinder);
+    return cylinder;
+  }
 
   private addDialCircle(translationX: number, translationY: number) {
     const r = this.editorData.derivedVals.plateWidth / 2;
@@ -368,6 +486,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return dialCircle;
   }
 
+  //use after adding bounding cube and boolean diff with layer elsewhere
   private addText(
     rotation: number,
     translationX: number,
@@ -407,10 +526,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       zWidth = 1;
     }
     console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
-    const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
-    const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-    const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
-    this.scene.add(bboxBox);
+    //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
+    //const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    //const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
+    //this.scene.add(bboxBox);
     const xScale = width / xWidth;
     const yScale = height / yWidth;
     myText.scale.set(xScale, yScale, 1);

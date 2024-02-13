@@ -96,6 +96,17 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   private scene!: THREE.Scene;
   private layer1Height!: number;
+  private modulesList = [
+    { type: 0, data: [2, 0, 20, 20] },
+    { type: 0, data: [3, 0, 40, 20] },
+    { type: 0, data: [4, 90, 20, 60] },
+    { type: 1, data: [100, 100] },
+    { type: 1, data: [100, 20] },
+    {
+      type: 2,
+      data: [90, 60, 60, 'this is some text', 61.60463928222656, 9.04780632019],
+    },
+  ];
 
   constructor(private ngZone: NgZone) {}
 
@@ -120,43 +131,22 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     //* Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-
-    /*const light1 = new THREE.SpotLight(0xffffff, 100);
-    light1.position.set(2.5, 5, 5);
-    light1.angle = Math.PI / 4;
-    light1.penumbra = 0.5;
-    light1.castShadow = true;
-    light1.shadow.mapSize.width = 1024;
-    light1.shadow.mapSize.height = 1024;
-    light1.shadow.camera.near = 0.5;
-    light1.shadow.camera.far = 20;
-    this.scene.add(light1);
-
-    const light2 = new THREE.SpotLight(0xffffff, 100);
-    light2.position.set(-2.5, 5, 5);
-    light2.angle = Math.PI / 4;
-    light2.penumbra = 0.5;
-    light2.castShadow = true;
-    light2.shadow.mapSize.width = 1024;
-    light2.shadow.mapSize.height = 1024;
-    light2.shadow.camera.near = 0.5;
-    light2.shadow.camera.far = 20;
-    this.scene.add(light2); */
-    const light3 = new THREE.AmbientLight(0x404040); // soft white light
+    const light3 = new THREE.AmbientLight(0xaaaaaa); // soft white light
     this.scene.add(light3);
     const light4 = new THREE.DirectionalLight(0xffffff, 0.5);
     this.scene.add(light4);
+    const light5 = new THREE.DirectionalLight(0xffffff, 0.5);
+    this.scene.add(light5);
+    const targetObj = new THREE.Object3D();
+    this.scene.add(targetObj);
+    light4.target = targetObj;
+    light4.position.set(0, -1000, 0);
+    light5.target = targetObj;
+    light5.position.set(0, 1000, 0);
     //this.scene.add(this.cube);
     //create a cube and sphere and intersect them
     this.addBaseLayer1();
-    const cubeMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(2, 2, 2),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
-    );
-    const sphereMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1.45, 64, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
-    );
+    this.createLayer2();
     const xMarker = new THREE.Mesh(
       new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
       new THREE.MeshStandardMaterial({ color: 0xff0000 }),
@@ -177,22 +167,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     zMarker.position.set(0, 0, 50);
     zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
     this.scene.add(zMarker);
-    cubeMesh.position.set(-5, 0, -6);
-    //this.scene.add(cubeMesh);
-    sphereMesh.position.set(-2, 0, -6);
-    //this.scene.add(sphereMesh);
 
-    const cubeCSG = CSG.fromMesh(cubeMesh, 0);
-    const sphereCSG = CSG.fromMesh(sphereMesh, 1);
-
-    const cubeSphereIntersectCSG = cubeCSG.intersect(sphereCSG);
-    const cubeSphereIntersectMesh = CSG.toMesh(
-      cubeSphereIntersectCSG,
-      new THREE.Matrix4(),
-      [cubeMesh.material, sphereMesh.material],
-    );
-    cubeSphereIntersectMesh.position.set(-2.5, 0, -3);
-    this.scene.add(cubeSphereIntersectMesh);
     //*Camera
     const aspectRatio = this.getAspectRatio();
     this.camera = new THREE.PerspectiveCamera(
@@ -259,32 +234,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     saveAs(blob, 'my-test.stl');
   }
 
-  /**public animate(): void {
-  window.addEventListener('DOMContentLoaded', () => {
-    this.render();
-  });
-
-  window.addEventListener('resize', () => {
-    this.resize();
-  // We have to run this outside angular zones,
-  // because it could trigger heavy changeDetection cycles.
-  this.ngZone.runOutsideAngular(() => {
-    window.addEventListener('DOMContentLoaded', () => {
-      this.render();
-    });
-
-    window.addEventListener('resize', () => {
-      this.resize();
-    });
-  });
-}
-
-public render() {
-  requestAnimationFrame(() => {
-  this.frameId = requestAnimationFrame(() => {
-    this.render();
-  }); **/
-
   private addBaseLayer1() {
     const modulesList = [
       { type: 0, data: [2, 0, 20, 20] },
@@ -349,7 +298,8 @@ public render() {
           Number(module['data'][0]),
           Number(module['data'][1]),
         );
-        this.scene.add(dialCircle);
+        const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
+        l1BCSG = l1BCSG.subtract(dialCSG);
       } else if (module['type'] === 2) {
         this.addText(
           Number(module['data'][0]),
@@ -362,8 +312,8 @@ public render() {
       }
       moduleIndex++;
     }
-    const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
-    this.scene.add(layer1);
+    //const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+    //this.scene.add(layer1);
   }
 
   private addSliderLayer1(
@@ -373,7 +323,10 @@ public render() {
     translateY: number,
   ) {
     const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
-    const w = this.editorData.derivedVals.sliderRadius * 2 + 2; //extra 1 on each end
+    const w =
+      this.editorData.derivedVals.sliderRadius * 2 +
+      2 +
+      2 * this.editorData.partGapWidth; //extra 1 on each end
     const h =
       this.editorData.partGapWidth +
       this.editorData.minWallWidth +
@@ -421,21 +374,6 @@ public render() {
         );
       }
     }
-    /*cubeMesh.position.set(-5, 0, -6);
-    //this.scene.add(cubeMesh);
-    sphereMesh.position.set(-2, 0, -6);
-    //this.scene.add(sphereMesh);
-
-    const cubeCSG = CSG.fromMesh(cubeMesh, 0);
-    const sphereCSG = CSG.fromMesh(sphereMesh, 1);
-
-    const cubeSphereIntersectCSG = cubeCSG.intersect(sphereCSG);
-    const cubeSphereIntersectMesh = CSG.toMesh(
-      cubeSphereIntersectCSG,
-      new THREE.Matrix4(),
-      [cubeMesh.material, sphereMesh.material],
-    );
-    cubeSphereIntersectMesh.position.set(-2.5, 0, -3); */
     const geometry = new THREE.BoxGeometry(tL, h, tD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
     material.setValues({ opacity: 0.5, transparent: true });
@@ -471,19 +409,50 @@ public render() {
   }
 
   private addDialCircle(translationX: number, translationY: number) {
-    const r = this.editorData.derivedVals.plateWidth / 2;
+    const r =
+      this.editorData.derivedVals.plateWidth / 2 + this.editorData.partGapWidth;
     const h =
-      this.editorData.magnetHeight +
       this.editorData.partGapWidth +
       this.editorData.minWallWidth +
+      this.editorData.textDepth +
       1;
     const newX = translationX + r;
     const newZ = translationY + r;
+    const bottomOfDialCircle = -h + 1,
+      magYTranslate =
+        1 +
+        bottomOfDialCircle -
+        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    material.setValues({ opacity: 0.5, transparent: true });
     const dialCircle = new THREE.Mesh(geometry, material);
     dialCircle.position.set(newX, -h / 2 + 1, newZ);
-    return dialCircle;
+    dialCircle.updateMatrix();
+    const magCyl = this.addMagCyl(
+      newX,
+      magYTranslate,
+      newZ +
+        (this.editorData.derivedVals.plateWidth / 2 -
+          (1.5 + this.editorData.magnetDiameter / 2)),
+    );
+    const knobR =
+      this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
+    const knobH =
+      this.editorData.magnetHeight + this.editorData.partGapWidth + 1;
+    const knobAlignCyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
+      material,
+    );
+    knobAlignCyl.position.set(newX, magYTranslate, newZ);
+    knobAlignCyl.updateMatrix();
+    let dialCSG = CSG.fromMesh(dialCircle);
+    const magCylCSG = CSG.fromMesh(magCyl);
+    const knobAlignCSG = CSG.fromMesh(knobAlignCyl);
+    dialCSG = dialCSG.union(magCylCSG);
+    dialCSG = dialCSG.union(knobAlignCSG);
+    const completeDialCircle = CSG.toMesh(dialCSG, dialCircle.matrix, material);
+    return completeDialCircle;
   }
 
   //use after adding bounding cube and boolean diff with layer elsewhere
@@ -537,7 +506,7 @@ public render() {
     myText.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
     myText.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
     myText.position.set(translationX, -h / 2 + 1, translationY);
-    this.scene.add(myText);
+    //this.scene.add(myText);
   }
 
   //reusable params: magnet extrusion heights and y positions per layer
@@ -561,40 +530,208 @@ public render() {
       }
     }
   */
-  private createLayer1() {
-    //start with base, add rectangles with attached cylinders, do boolean difference
-  }
-
-  private addLayer1Slider() {}
-
-  private addLayer1Dial() {}
 
   //No text
 
   private createLayer2() {
+    for (const module of this.modulesList) {
+      if (module['type'] === 0) {
+        const slider = this.addSliderLayer2(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          Number(module['data'][3]),
+        );
+        this.scene.add(slider);
+      } else if (module['type'] === 1) {
+        const dialCircle = this.addDialLayer2(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+        );
+        this.scene.add(dialCircle);
+      } else if (module['type'] === 2) {
+        continue;
+      }
+    }
     //create slider pieces and dials, with engraved text and magnet holes underneath
   }
 
   //cylinder and rectangle for each slider, ezpz
-  private addLayer2Slider() {}
+  private addSliderLayer2(
+    length: number,
+    rotation: number,
+    translateX: number,
+    translateY: number,
+  ): THREE.Mesh {
+    const l = this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const w = this.editorData.derivedVals.sliderRadius * 2 + 2; //same as layer 1 but no part gap
+    const h = this.editorData.minWallWidth + this.editorData.textDepth; // same as layer 1 but no part gap
+    let sL, sD, newX, newZ;
+    //bottom of track cube minus height plus 3
+    const bottomOfSliderCube = -h + 3,
+      magYTranslate =
+        -1 +
+        bottomOfSliderCube +
+        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2; //stick out bottom
+    if (rotation === 0) {
+      //vertical
+      sL = w;
+      sD = l;
+      newX = translateX + w / 2 + this.editorData.partGapWidth / 2;
+      newZ = translateY + l / 2;
+    } else {
+      sL = l;
+      sD = w;
+      newX = translateX + l / 2;
+      newZ = translateY + w / 2 + this.editorData.partGapWidth / 2;
+    }
+    const knobR = this.editorData.derivedVals.knobWidth / 2;
+    const geometry = new THREE.BoxGeometry(sL, h, sD);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    material.setValues({ opacity: 0.5, transparent: true });
+    const sliderCube = new THREE.Mesh(geometry, material);
+    sliderCube.position.set(newX, -h / 2 + 3, newZ);
+    sliderCube.updateMatrix();
+    const magCyl = this.addMagCyl(newX, magYTranslate, newZ);
+    //this.scene.add(magCyl);
+    let sliderCSG = CSG.fromMesh(sliderCube, 0);
+    const magCylCSG = CSG.fromMesh(magCyl, 1);
+    const knobCylGeo = new THREE.CylinderGeometry(knobR, knobR, h + 5, 32, 32);
+    const knobCylMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const knobCyl = new THREE.Mesh(knobCylGeo, knobCylMaterial);
+    knobCyl.position.set(newX, (-h + 5) / 2 + 3, newZ);
+    //this.scene.add(knobCyl);
+    knobCyl.updateMatrix();
+    const knobCylCSG = CSG.fromMesh(knobCyl, 2);
+    sliderCSG = sliderCSG.union(knobCylCSG);
+    sliderCSG = sliderCSG.subtract(magCylCSG);
+    const completeSlider = CSG.toMesh(sliderCSG, sliderCube.matrix, material);
+    return completeSlider;
+  }
 
-  private addLayer2Dial() {
+  private addDialLayer2(
+    translationX: number,
+    translationY: number,
+  ): THREE.Mesh {
     //small tall cylinder, large flat cylinder, boolean difference magnet cylinders, engrave text
+    const r = this.editorData.derivedVals.plateWidth / 2; //same as before but no part gap
+    const h = this.editorData.minWallWidth + this.editorData.textDepth; //same as before but no part gap and no extra + 1 to stick out of surface
+    const newX = translationX + r;
+    const newZ = translationY + r;
+    const bottomOfDialCircle = -h + 3,
+      magYTranslate =
+        -1 +
+        bottomOfDialCircle +
+        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
+    const geometry = new THREE.CylinderGeometry(r, r, h, 32);
+    const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    material.setValues({ opacity: 0.5, transparent: true });
+    const dialCircle = new THREE.Mesh(geometry, material);
+    dialCircle.position.set(newX, -h / 2 + 3, newZ);
+    dialCircle.updateMatrix();
+    const angleDiffRads = (2 * Math.PI) / 10;
+    const magCylArr = [];
+    for (let i = 0; i <= 9; i++) {
+      const theta = angleDiffRads * i + Math.PI / 2 + angleDiffRads;
+      const magXVal =
+        newX +
+        (this.editorData.derivedVals.plateWidth / 2 -
+          (1.5 + this.editorData.magnetDiameter / 2)) *
+          Math.cos(theta); //x and y are circle center, want to set mag edge minWallWidth inside dial edge
+      const magZVal =
+        newZ +
+        (this.editorData.derivedVals.plateWidth / 2 -
+          (1.5 + this.editorData.magnetDiameter / 2)) *
+          Math.sin(theta); //x and y are circle center
+      magCylArr.push(this.addMagCyl(magXVal, magYTranslate, magZVal));
+    }
+
+    //this.scene.add(magCyl);
+    const knobR = this.editorData.derivedVals.knobWidth / 2;
+    const knobH = this.editorData.magnetHeight + h + 5;
+    const knobAlignCyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
+      material,
+    );
+    knobAlignCyl.position.set(newX, -h / 2 + 3 + 2.5, newZ);
+    knobAlignCyl.updateMatrix();
+    let dialCSG = CSG.fromMesh(dialCircle);
+    for (const magCylMesh of magCylArr) {
+      const magCylCSG = CSG.fromMesh(magCylMesh);
+      dialCSG = dialCSG.subtract(magCylCSG);
+    }
+
+    const knobAlignCSG = CSG.fromMesh(knobAlignCyl);
+    dialCSG = dialCSG.union(knobAlignCSG);
+
+    //TODO: Add in text to number dial once I've had time to deal with it
+
+    const completeDialCircle = CSG.toMesh(dialCSG, dialCircle.matrix, material);
+    return completeDialCircle;
   }
 
   private createLayer3() {
     //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
+    const length =
+      this.editorData.boundingBox.maxX +
+      20 -
+      this.editorData.boundingBox.minX +
+      20;
+    //base should consist of bottom layer, holes for magnets, and path for track/dials
+    //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
+    //but also add textDepth
+    //plus 1 for wiggle room
+    const height = this.editorData.minWallWidth + this.editorData.textDepth;
+    //this.layer1Height = height;
+    const depth =
+      this.editorData.boundingBox.maxY +
+      20 -
+      this.editorData.boundingBox.minY +
+      20;
+    const geometry = new THREE.BoxGeometry(length, height, depth);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+    });
+    material.setValues({ opacity: 0.5, transparent: true });
+    const layer3Base = new THREE.Mesh(geometry, material);
+    layer3Base.position.set(length / 2, -height / 2 + 5, depth / 2); //top should be at 0
+    layer3Base.updateMatrix();
+    for (const module of this.modulesList) {
+      if (module['type'] === 0) {
+        const slider = this.addSliderLayer2(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          Number(module['data'][3]),
+        );
+        this.scene.add(slider);
+      } else if (module['type'] === 1) {
+        const dialCircle = this.addDialLayer2(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+        );
+        this.scene.add(dialCircle);
+      } else if (module['type'] === 2) {
+        continue;
+      }
+    }
   }
 
-  private addLayer3Slider() {
-    //window with rounded end caps
+  private addSliderLayer3(
+    length: number,
+    rotation: number,
+    translateX: number,
+    translateY: number,
+  ) {
+    //window with rounded end caps - union cube and cylinders at either end
+    const rectLength = this.editorData.derivedVals.segmentLength * (length - 1);
   }
 
-  private addLayer3Dial() {
+  private addDialLayer3() {
     //hole for dial knob, window for dial numerals
   }
 
-  private addLayer3Text() {
+  private addTextLayer3() {
     //boolean difference rectangle, union text
   }
 

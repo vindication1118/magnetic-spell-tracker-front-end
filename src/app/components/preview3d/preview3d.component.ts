@@ -312,8 +312,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       }
       moduleIndex++;
     }
-    //const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
-    //this.scene.add(layer1);
+    const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+    this.scene.add(layer1);
   }
 
   private addSliderLayer1(
@@ -331,6 +331,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       this.editorData.partGapWidth +
       this.editorData.minWallWidth +
       this.editorData.textDepth +
+      this.editorData.magnetHeight +
       1; // want this sticking out of surface of base cube by 1
     let tL, tD, newX, newZ;
     const cylArr = [],
@@ -415,6 +416,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       this.editorData.partGapWidth +
       this.editorData.minWallWidth +
       this.editorData.textDepth +
+      this.editorData.magnetHeight +
       1;
     const newX = translationX + r;
     const newZ = translationY + r;
@@ -456,19 +458,17 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   }
 
   //use after adding bounding cube and boolean diff with layer elsewhere
+  //X and Z translation Values mark bottom LEFT corner IE bottom of first character in string
   private addText(
     rotation: number,
     translationX: number,
-    translationY: number,
+    translationZ: number,
     inputText: string,
     width: number,
     height: number,
-  ) {
-    const h =
-      this.editorData.magnetHeight +
-      this.editorData.partGapWidth +
-      this.editorData.minWallWidth +
-      1;
+    translationY?: number,
+  ): THREE.Mesh {
+    const h = this.editorData.textDepth;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
     const geometry = new TextGeometry(inputText, {
@@ -483,7 +483,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const myText = new THREE.Mesh(geometry, material);
     myText.geometry.computeBoundingBox();
     const bbox = myText.geometry.boundingBox;
-    console.log(bbox);
+    //console.log(bbox);
     let xWidth, yWidth, zWidth;
     if (bbox) {
       xWidth = bbox?.max.x - bbox?.min.x;
@@ -494,7 +494,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       yWidth = 1;
       zWidth = 1;
     }
-    console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
+    //console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
     //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
     //const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
     //const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
@@ -505,7 +505,90 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     //top of text is in the +y direction to start, readable from +z axis. Baseline left, rear most point is the origin.(matches an svg text or tspan element)
     myText.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
     myText.rotation.z = -(rotation * Math.PI) / 180; //match text rotation from svg
-    myText.position.set(translationX, -h / 2 + 1, translationY);
+    if (typeof translationY === 'undefined') {
+      translationY = 1;
+    }
+    myText.position.set(translationX, -h / 2 + translationY, translationZ);
+    myText.updateMatrix();
+    return myText;
+    //this.scene.add(myText);
+  }
+
+  private addTextCentered(
+    rotation: number,
+    translationX: number,
+    translationZ: number,
+    inputText: string,
+    width: number,
+    height: number,
+    translationY?: number,
+  ): THREE.Mesh {
+    const h = this.editorData.textDepth;
+    const loader = new FontLoader();
+    const loadedFont = loader.parse(fontData);
+    const geometry = new TextGeometry(inputText, {
+      font: loadedFont,
+      size: 8,
+      height: h,
+      curveSegments: 12,
+      bevelEnabled: false,
+    });
+    //const box = new THREE.Box3();
+    const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+    const myText = new THREE.Mesh(geometry, material);
+    myText.geometry.computeBoundingBox();
+    const bbox = myText.geometry.boundingBox;
+    //console.log(bbox);
+    let xWidth, yWidth, zWidth;
+    if (bbox) {
+      xWidth = bbox?.max.x - bbox?.min.x;
+      yWidth = bbox?.max.y - bbox?.min.y;
+      zWidth = bbox?.max.z - bbox?.min.z;
+    } else {
+      xWidth = 1;
+      yWidth = 1;
+      zWidth = 1;
+    }
+    //console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
+    //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
+    //const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    //const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
+    //this.scene.add(bboxBox);
+    const xScale = width / xWidth;
+    const yScale = height / yWidth;
+    const zRot = -(rotation * Math.PI) / 180;
+    myText.scale.set(xScale, yScale, 1);
+    //top of text is in the +y direction to start, readable from +z axis. Baseline left, rear most point is the origin.(matches an svg text or tspan element)
+    myText.rotation.x = -(90 * Math.PI) / 180; // make text readable from above
+    myText.rotation.z = zRot; //match text rotation from svg
+    if (typeof translationY === 'undefined') {
+      translationY = 1;
+    }
+    myText.updateMatrix();
+    myText.geometry.computeBoundingBox();
+    const tBBox = myText.geometry.boundingBox;
+    if (tBBox) {
+      xWidth = tBBox?.max.x - tBBox?.min.x;
+      yWidth = tBBox?.max.y - tBBox?.min.y;
+      zWidth = tBBox?.max.z - tBBox?.min.z;
+    } else {
+      xWidth = 1;
+      yWidth = 1;
+      zWidth = 1;
+    }
+    let modifier;
+    if (inputText === '1') {
+      modifier = (xWidth * 3) / 4; //1 doesn't play well with widths. Have modifier here to make it look good
+    } else {
+      modifier = xWidth / 2;
+    }
+    myText.position.set(
+      translationX - modifier * Math.cos(zRot),
+      -h / 2 + translationY,
+      translationZ + modifier * Math.sin(zRot),
+    );
+    myText.updateMatrix();
+    return myText;
     //this.scene.add(myText);
   }
 
@@ -565,7 +648,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   ): THREE.Mesh {
     const l = this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
     const w = this.editorData.derivedVals.sliderRadius * 2 + 2; //same as layer 1 but no part gap
-    const h = this.editorData.minWallWidth + this.editorData.textDepth; // same as layer 1 but no part gap
+    const h =
+      this.editorData.minWallWidth +
+      this.editorData.textDepth +
+      this.editorData.magnetHeight; // same as layer 1 but no part gap
     let sL, sD, newX, newZ;
     //bottom of track cube minus height plus 3
     const bottomOfSliderCube = -h + 3,
@@ -615,7 +701,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   ): THREE.Mesh {
     //small tall cylinder, large flat cylinder, boolean difference magnet cylinders, engrave text
     const r = this.editorData.derivedVals.plateWidth / 2; //same as before but no part gap
-    const h = this.editorData.minWallWidth + this.editorData.textDepth; //same as before but no part gap and no extra + 1 to stick out of surface
+    const h =
+      this.editorData.minWallWidth +
+      this.editorData.magnetHeight +
+      this.editorData.textDepth; //same as before but no part gap and no extra + 1 to stick out of surface
     const newX = translationX + r;
     const newZ = translationY + r;
     const bottomOfDialCircle = -h + 3,
@@ -625,7 +714,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    material.setValues({ opacity: 0.5, transparent: true });
+    //material.setValues({ opacity: 0.5, transparent: true });
     const dialCircle = new THREE.Mesh(geometry, material);
     dialCircle.position.set(newX, -h / 2 + 3, newZ);
     dialCircle.updateMatrix();
@@ -665,9 +754,74 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     dialCSG = dialCSG.union(knobAlignCSG);
 
     //TODO: Add in text to number dial once I've had time to deal with it
-
+    const dialText = this.addDialDigits(newX, newZ, bottomOfDialCircle + h);
+    for (const divot of dialText.divots) {
+      const divotCSG = CSG.fromMesh(divot);
+      dialCSG = dialCSG.subtract(divotCSG);
+    }
+    for (const digit of dialText.digits) {
+      const digitCSG = CSG.fromMesh(digit);
+      dialCSG = dialCSG.union(digitCSG);
+    }
     const completeDialCircle = CSG.toMesh(dialCSG, dialCircle.matrix, material);
     return completeDialCircle;
+  }
+
+  private addDialDigits(
+    dialCenterX: number,
+    dialCenterZ: number,
+    yTranslate: number,
+  ) {
+    const l = this.editorData.derivedVals.knobWidth + 3,
+      w = this.editorData.derivedVals.knobWidth + 1,
+      h = this.editorData.textDepth + 1,
+      newR = this.editorData.derivedVals.knobWidth + l / 2,
+      angleDiffRads = (2 * Math.PI) / 10,
+      textRadius =
+        this.editorData.derivedVals.plateWidth / 2 -
+        (3 * this.editorData.derivedVals.knobWidth) / 4,
+      angleDiffDeg = 360 / 10;
+    const textObj = {
+      divots: new Array<THREE.Mesh>(),
+      digits: new Array<THREE.Mesh>(),
+    };
+    for (let i = 0; i < 10; i++) {
+      const theta = angleDiffRads * (i + 1) + Math.PI / 2;
+      const thetaDeg = angleDiffDeg * (i + 1);
+      const newXVal = dialCenterX + newR * Math.cos(theta);
+      const newZVal = dialCenterZ + newR * Math.sin(theta);
+      const geometry = new THREE.BoxGeometry(w, h, l);
+      const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const divotBox = new THREE.Mesh(geometry, material);
+      divotBox.position.set(
+        newXVal,
+        yTranslate + h / 2 - this.editorData.textDepth,
+        newZVal,
+      );
+      divotBox.rotation.y = -(theta - Math.PI / 2);
+      divotBox.updateMatrix();
+      textObj.divots.push(divotBox);
+      const textXVal = dialCenterX + textRadius * Math.cos(theta);
+      const textZVal = dialCenterZ + textRadius * Math.sin(theta);
+      const text = '' + i + '';
+      let newWidth;
+      if (i === 1) {
+        newWidth = w / 4;
+      } else {
+        newWidth = w / 2;
+      }
+      const textMesh = this.addTextCentered(
+        thetaDeg,
+        textXVal,
+        textZVal,
+        text,
+        newWidth,
+        l / 2,
+        yTranslate - this.editorData.textDepth / 2,
+      );
+      textObj.digits.push(textMesh);
+    }
+    return textObj;
   }
 
   private createLayer3() {

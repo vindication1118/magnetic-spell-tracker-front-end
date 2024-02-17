@@ -89,14 +89,14 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private loader = new THREE.TextureLoader();
   private geometry = new THREE.BoxGeometry(1, 1, 1);
   private material = new THREE.MeshBasicMaterial();
-
+  private objectLoader = new THREE.ObjectLoader();
   private cube: THREE.Mesh = new THREE.Mesh(this.geometry, this.material);
 
   private renderer!: THREE.WebGLRenderer;
 
   private scene!: THREE.Scene;
   private layer1Height!: number;
-  private modulesList = [
+  private oldmodulesList = [
     { type: 0, data: [2, 0, 20, 20] },
     { type: 0, data: [3, 0, 40, 20] },
     { type: 0, data: [4, 90, 20, 60] },
@@ -105,6 +105,217 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     {
       type: 2,
       data: [90, 60, 60, 'this is some text', 61.60463928222656, 9.04780632019],
+    },
+  ];
+  private modulesList = [
+    {
+      type: 1,
+      data: [20, 20],
+    },
+    {
+      type: 1,
+      data: [60, 20],
+    },
+    {
+      type: 1,
+      data: [100, 20],
+    },
+    {
+      type: 2,
+      data: [0, 60, 10, 'Life Total', 34.51333999633789, 9.041501998901367],
+    },
+    {
+      type: 0,
+      data: [6, 0, 15, 80],
+    },
+    {
+      type: 0,
+      data: [5, 0, 26.1, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 37.2, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 48.300000000000004, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 59.400000000000006, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 70.5, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 81.60000000000001, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 92.70000000000002, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 103.80000000000001, 86.3],
+    },
+    {
+      type: 0,
+      data: [5, 0, 114.9, 86.3],
+    },
+    {
+      type: 0,
+      data: [3, 0, 126.00000000000001, 98.9],
+    },
+    {
+      type: 2,
+      data: [0, 65, 68, 'Spell Slots', 40.538536071777344, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [0, 15, 78, 'C', 6.025197505950928, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [0, 26.1, 78, '1', 4.6986165046691895, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [0, 37.2, 78, '2', 4.6986165046691895, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        48.300000000000004,
+        78,
+        '3',
+        4.6986165046691895,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        59.400000000000006,
+        78,
+        '4',
+        4.6986165046691895,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [0, 70.5, 78, '5', 4.6986165046691895, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        81.60000000000001,
+        78,
+        '6',
+        4.6986165046691895,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        92.70000000000002,
+        78,
+        '7',
+        4.6986165046691895,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        103.80000000000001,
+        78,
+        '8',
+        4.6986165046691895,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [0, 114.9, 78, '9', 4.6986165046691895, 9.041501998901367],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        126.00000000000001,
+        78,
+        '10',
+        9.397233009338379,
+        9.041501998901367,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        10,
+        84.05000000000001,
+        '5',
+        2.472825765609741,
+        4.5948615074157715,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        10,
+        90.35000000000001,
+        '4',
+        2.472825765609741,
+        4.5948615074157715,
+      ],
+    },
+    {
+      type: 2,
+      data: [0, 10, 96.65, '3', 2.472825765609741, 4.5948615074157715],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        10,
+        102.95000000000002,
+        '2',
+        2.472825765609741,
+        4.5948615074157715,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        10,
+        109.25000000000001,
+        '1',
+        2.472825765609741,
+        4.5948615074157715,
+      ],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        10,
+        115.55000000000001,
+        '0',
+        2.472825765609741,
+        4.5948615074157715,
+      ],
     },
   ];
 
@@ -145,8 +356,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     light5.position.set(0, 1000, 0);
     //this.scene.add(this.cube);
     //create a cube and sphere and intersect them
-    this.addBaseLayer1();
-    this.createLayer2();
     const xMarker = new THREE.Mesh(
       new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
       new THREE.MeshStandardMaterial({ color: 0xff0000 }),
@@ -179,6 +388,27 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.camera.position.x = 0.5;
     this.camera.position.y = 8000;
     this.camera.position.z = 8000;
+    if (typeof Worker !== 'undefined') {
+      // Create a new
+      const worker = new Worker(new URL('./3d.worker', import.meta.url), {
+        type: 'module',
+      });
+      worker.onmessage = ({ data }) => {
+        this.scene.add(this.objectLoader.parse(data));
+      };
+      worker.postMessage(this.modulesList);
+    } else {
+      // Web workers are not supported in this environment.
+      // You should add a fallback so that your program still executes correctly.
+      this.addBaseLayer1().then((layer1) => {
+        this.scene.add(layer1);
+      });
+      this.createLayer2().then((layer2) => {
+        for (const mesh of layer2) {
+          this.scene.add(mesh);
+        }
+      });
+    }
   }
 
   private getAspectRatio() {
@@ -234,86 +464,70 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     saveAs(blob, 'my-test.stl');
   }
 
-  private addBaseLayer1() {
-    const modulesList = [
-      { type: 0, data: [2, 0, 20, 20] },
-      { type: 0, data: [3, 0, 40, 20] },
-      { type: 0, data: [4, 90, 20, 60] },
-      { type: 1, data: [100, 100] },
-      { type: 1, data: [100, 20] },
-      {
-        type: 2,
-        data: [
-          90,
-          60,
-          60,
-          'this is some text',
-          61.60463928222656,
-          9.04780632019,
-        ],
-      },
-    ];
-    const length =
-      this.editorData.boundingBox.maxX +
-      20 -
-      this.editorData.boundingBox.minX +
-      20;
-    //base should consist of bottom layer, holes for magnets, and path for track/dials
-    //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
-    //but also add textDepth
-    //plus 1 for wiggle room
-    const height =
-      this.editorData.magnetHeight +
-      (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
-      this.editorData.textDepth +
-      1;
-    this.layer1Height = height;
-    const depth =
-      this.editorData.boundingBox.maxY +
-      20 -
-      this.editorData.boundingBox.minY +
-      20;
-    const geometry = new THREE.BoxGeometry(length, height, depth);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
-    });
-    material.setValues({ opacity: 0.5, transparent: true });
-    const layer1Base = new THREE.Mesh(geometry, material);
-    layer1Base.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
-    layer1Base.updateMatrix();
-    let l1BCSG = CSG.fromMesh(layer1Base, 0);
-    let moduleIndex = 1;
-    for (const module of modulesList) {
-      if (module['type'] === 0) {
-        const track = this.addSliderLayer1(
-          Number(module['data'][0]),
-          Number(module['data'][1]),
-          Number(module['data'][2]),
-          Number(module['data'][3]),
-        );
-        const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
-        l1BCSG = l1BCSG.subtract(trackCubeCSG);
-      } else if (module['type'] === 1) {
-        const dialCircle = this.addDialCircle(
-          Number(module['data'][0]),
-          Number(module['data'][1]),
-        );
-        const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
-        l1BCSG = l1BCSG.subtract(dialCSG);
-      } else if (module['type'] === 2) {
-        this.addText(
-          Number(module['data'][0]),
-          Number(module['data'][1]),
-          Number(module['data'][2]),
-          module['data'][3] + '',
-          Number(module['data'][4]),
-          Number(module['data'][5]),
-        );
+  private addBaseLayer1(): Promise<THREE.Object3D> {
+    return new Promise((resolve) => {
+      const length =
+        this.editorData.boundingBox.maxX +
+        20 -
+        this.editorData.boundingBox.minX +
+        20;
+      //base should consist of bottom layer, holes for magnets, and path for track/dials
+      //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
+      //but also add textDepth
+      //plus 1 for wiggle room
+      const height =
+        this.editorData.magnetHeight +
+        (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
+        this.editorData.textDepth +
+        1;
+      this.layer1Height = height;
+      const depth =
+        this.editorData.boundingBox.maxY +
+        20 -
+        this.editorData.boundingBox.minY +
+        20;
+      const geometry = new THREE.BoxGeometry(length, height, depth);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+      });
+      //material.setValues({ opacity: 0.5, transparent: true });
+      const layer1Base = new THREE.Mesh(geometry, material);
+      layer1Base.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
+      layer1Base.updateMatrix();
+      let l1BCSG = CSG.fromMesh(layer1Base, 0);
+      let moduleIndex = 1;
+      for (const module of this.modulesList) {
+        if (module['type'] === 0) {
+          const track = this.addSliderLayer1(
+            Number(module['data'][0]),
+            Number(module['data'][1]),
+            Number(module['data'][2]),
+            Number(module['data'][3]),
+          );
+          const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
+          l1BCSG = l1BCSG.subtract(trackCubeCSG);
+        } else if (module['type'] === 1) {
+          const dialCircle = this.addDialCircle(
+            Number(module['data'][0]),
+            Number(module['data'][1]),
+          );
+          const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
+          l1BCSG = l1BCSG.subtract(dialCSG);
+        } else if (module['type'] === 2) {
+          this.addText(
+            Number(module['data'][0]),
+            Number(module['data'][1]),
+            Number(module['data'][2]),
+            module['data'][3] + '',
+            Number(module['data'][4]),
+            Number(module['data'][5]),
+          );
+        }
+        moduleIndex++;
       }
-      moduleIndex++;
-    }
-    const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
-    this.scene.add(layer1);
+      const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+      resolve(layer1);
+    });
   }
 
   private addSliderLayer1(
@@ -377,7 +591,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     }
     const geometry = new THREE.BoxGeometry(tL, h, tD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-    material.setValues({ opacity: 0.5, transparent: true });
+    //material.setValues({ opacity: 0.5, transparent: true });
     const trackCube = new THREE.Mesh(geometry, material);
     trackCube.position.set(newX, -h / 2 + 1, newZ);
     trackCube.updateMatrix();
@@ -427,7 +641,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    material.setValues({ opacity: 0.5, transparent: true });
+    //material.setValues({ opacity: 0.5, transparent: true });
     const dialCircle = new THREE.Mesh(geometry, material);
     dialCircle.position.set(newX, -h / 2 + 1, newZ);
     dialCircle.updateMatrix();
@@ -484,15 +698,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     myText.geometry.computeBoundingBox();
     const bbox = myText.geometry.boundingBox;
     //console.log(bbox);
-    let xWidth, yWidth, zWidth;
+    let xWidth, yWidth;
     if (bbox) {
       xWidth = bbox?.max.x - bbox?.min.x;
       yWidth = bbox?.max.y - bbox?.min.y;
-      zWidth = bbox?.max.z - bbox?.min.z;
+      //zWidth = bbox?.max.z - bbox?.min.z;
     } else {
       xWidth = 1;
       yWidth = 1;
-      zWidth = 1;
+      //zWidth = 1;
     }
     //console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
     //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
@@ -513,8 +727,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return myText;
     //this.scene.add(myText);
   }
-
-  private addTextCentered(
+  /*  */
+  private addTextXCentered(
     rotation: number,
     translationX: number,
     translationZ: number,
@@ -539,15 +753,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     myText.geometry.computeBoundingBox();
     const bbox = myText.geometry.boundingBox;
     //console.log(bbox);
-    let xWidth, yWidth, zWidth;
+    let xWidth, yWidth;
     if (bbox) {
       xWidth = bbox?.max.x - bbox?.min.x;
       yWidth = bbox?.max.y - bbox?.min.y;
-      zWidth = bbox?.max.z - bbox?.min.z;
+      //zWidth = bbox?.max.z - bbox?.min.z;
     } else {
       xWidth = 1;
       yWidth = 1;
-      zWidth = 1;
+      //zWidth = 1;
     }
     //console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
     //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
@@ -570,11 +784,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     if (tBBox) {
       xWidth = tBBox?.max.x - tBBox?.min.x;
       yWidth = tBBox?.max.y - tBBox?.min.y;
-      zWidth = tBBox?.max.z - tBBox?.min.z;
+      //zWidth = tBBox?.max.z - tBBox?.min.z;
     } else {
       xWidth = 1;
       yWidth = 1;
-      zWidth = 1;
+      //zWidth = 1;
     }
     let modifier;
     if (inputText === '1') {
@@ -616,27 +830,39 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   //No text
 
-  private createLayer2() {
-    for (const module of this.modulesList) {
-      if (module['type'] === 0) {
-        const slider = this.addSliderLayer2(
+  private createLayer2(): Promise<THREE.Mesh[]> {
+    return new Promise((resolve) => {
+      const meshArr: THREE.Mesh[] = [];
+      const r = this.editorData.derivedVals.plateWidth / 2;
+      let genericDialLayer2;
+      for (const module of this.modulesList) {
+        if (module['type'] === 0) {
+          const slider = this.addSliderLayer2(
+            Number(module['data'][0]),
+            Number(module['data'][1]),
+            Number(module['data'][2]),
+            Number(module['data'][3]),
+          );
+          meshArr.push(slider);
+        } else if (module['type'] === 1) {
+          if (typeof genericDialLayer2 === 'undefined') {
+            genericDialLayer2 = this.addGenericDialLayer2();
+          }
+          const dialCircle = genericDialLayer2.clone();
+          dialCircle.position.setComponent(0, Number(module['data'][0]) + r);
+          dialCircle.position.setComponent(2, Number(module['data'][1]) + r);
+          dialCircle.updateMatrix();
+          /*const dialCircle = this.addDialLayer2(
           Number(module['data'][0]),
           Number(module['data'][1]),
-          Number(module['data'][2]),
-          Number(module['data'][3]),
-        );
-        this.scene.add(slider);
-      } else if (module['type'] === 1) {
-        const dialCircle = this.addDialLayer2(
-          Number(module['data'][0]),
-          Number(module['data'][1]),
-        );
-        this.scene.add(dialCircle);
-      } else if (module['type'] === 2) {
-        continue;
+        );*/
+          meshArr.push(dialCircle);
+        } else if (module['type'] === 2) {
+          continue;
+        }
       }
-    }
-    //create slider pieces and dials, with engraved text and magnet holes underneath
+      resolve(meshArr);
+    });
   }
 
   //cylinder and rectangle for each slider, ezpz
@@ -674,7 +900,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const knobR = this.editorData.derivedVals.knobWidth / 2;
     const geometry = new THREE.BoxGeometry(sL, h, sD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-    material.setValues({ opacity: 0.5, transparent: true });
+    //material.setValues({ opacity: 0.5, transparent: true });
     const sliderCube = new THREE.Mesh(geometry, material);
     sliderCube.position.set(newX, -h / 2 + 3, newZ);
     sliderCube.updateMatrix();
@@ -694,7 +920,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const completeSlider = CSG.toMesh(sliderCSG, sliderCube.matrix, material);
     return completeSlider;
   }
-
+  private addGenericDialLayer2() {
+    const myGenericDialLayer2 = this.addDialLayer2(0, 0);
+    return myGenericDialLayer2;
+  }
   private addDialLayer2(
     translationX: number,
     translationY: number,
@@ -810,7 +1039,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       } else {
         newWidth = w / 2;
       }
-      const textMesh = this.addTextCentered(
+      const textMesh = this.addTextXCentered(
         thetaDeg,
         textXVal,
         textZVal,
@@ -846,25 +1075,25 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const material = new THREE.MeshStandardMaterial({
       color: 0x00ffff,
     });
-    material.setValues({ opacity: 0.5, transparent: true });
+    //material.setValues({ opacity: 0.5, transparent: true });
     const layer3Base = new THREE.Mesh(geometry, material);
     layer3Base.position.set(length / 2, -height / 2 + 5, depth / 2); //top should be at 0
     layer3Base.updateMatrix();
     for (const module of this.modulesList) {
       if (module['type'] === 0) {
-        const slider = this.addSliderLayer2(
+        const slider = this.addSliderLayer3(
           Number(module['data'][0]),
           Number(module['data'][1]),
           Number(module['data'][2]),
           Number(module['data'][3]),
         );
-        this.scene.add(slider);
+        //this.scene.add(slider);
       } else if (module['type'] === 1) {
-        const dialCircle = this.addDialLayer2(
+        const dialCircle = this.addDialLayer3(
           Number(module['data'][0]),
           Number(module['data'][1]),
         );
-        this.scene.add(dialCircle);
+        //this.scene.add(dialCircle);
       } else if (module['type'] === 2) {
         continue;
       }
@@ -879,9 +1108,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   ) {
     //window with rounded end caps - union cube and cylinders at either end
     const rectLength = this.editorData.derivedVals.segmentLength * (length - 1);
+    const r =
+      this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
+    if (rotation === 0) {
+      //vertical
+    } else {
+    }
   }
 
-  private addDialLayer3() {
+  private addDialLayer3(tX: number, tY: number) {
     //hole for dial knob, window for dial numerals
   }
 

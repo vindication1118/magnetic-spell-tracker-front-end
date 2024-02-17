@@ -172,17 +172,127 @@ export class D3containerComponent implements OnInit {
         .style('stroke', 'white')
         .style('stroke-width', strokeWidth);
     }
-    this.addSlider(2, 0, 20, 20);
-    this.addSlider(3, 0, 40, 20);
-    this.addSlider(4, 90, 20, 60);
-    this.addNumberDialInstance(100, 100);
+    console.log(this.segmentLength);
+
+    this.addNumberDialInstance(20, 20);
+    this.addNumberDialInstance(60, 20);
     this.addNumberDialInstance(100, 20);
-    this.addText(90, 60, -60, 'this is some text', 8);
+    this.addText(0, 60, 10, 'Life Total', 8);
+    this.addPathfinderSorcSpellSlots(5, -20);
+    //this.add5ESpellSlots();
+
     const res = this.parseTransform(`rotate(-10 50 100)
     translate(-36 45.5)
     skewX(40)
     scale(1 0.5)`);
     console.log(res);
+    console.log(this.modulesList);
+  }
+
+  private addPathfinderSorcSpellSlots(tx: number, ty: number) {
+    const tXDist =
+      this.sliderRadius * 2 +
+      2 +
+      2 * this.printOptionsForm.controls['partGapWidth'].value +
+      this.printOptionsForm.controls['minWallWidth'].value;
+    this.addSlider(6, 0, tx + 10 + 0 * tXDist, ty + 100);
+    this.addSlider(5, 0, tx + 10 + 1 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 2 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 3 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 4 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 5 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 6 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 7 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 8 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(5, 0, tx + 10 + 9 * tXDist, ty + 100 + this.segmentLength);
+    this.addSlider(
+      3,
+      0,
+      tx + 10 + 10 * tXDist,
+      ty + 100 + 3 * this.segmentLength,
+    );
+    this.addText(0, tx + 60, ty + 88, 'Spell Slots', 8);
+    this.addText(0, tx + 10 + 0 * tXDist, ty + 98, 'C', 8);
+    this.addText(0, tx + 10 + 1 * tXDist, ty + 98, '1', 8);
+    this.addText(0, tx + 10 + 2 * tXDist, ty + 98, '2', 8);
+    this.addText(0, tx + 10 + 3 * tXDist, ty + 98, '3', 8);
+    this.addText(0, tx + 10 + 4 * tXDist, ty + 98, '4', 8);
+    this.addText(0, tx + 10 + 5 * tXDist, ty + 98, '5', 8);
+    this.addText(0, tx + 10 + 6 * tXDist, ty + 98, '6', 8);
+    this.addText(0, tx + 10 + 7 * tXDist, ty + 98, '7', 8);
+    this.addText(0, tx + 10 + 8 * tXDist, ty + 98, '8', 8);
+    this.addText(0, tx + 10 + 9 * tXDist, ty + 98, '9', 8);
+    this.addText(0, tx + 10 + 10 * tXDist, ty + 98, '10', 8);
+    const startingPoint = ty + 100 + this.sliderRadius + 0.4;
+    this.addText(0, tx + 5, startingPoint, '5', 4, true);
+    this.addText(
+      0,
+      tx + 5,
+      startingPoint + 1 * this.segmentLength,
+      '4',
+      4,
+      true,
+    );
+    this.addText(
+      0,
+      tx + 5,
+      startingPoint + 2 * this.segmentLength,
+      '3',
+      4,
+      true,
+    );
+    this.addText(
+      0,
+      tx + 5,
+      startingPoint + 3 * this.segmentLength,
+      '2',
+      4,
+      true,
+    );
+    this.addText(
+      0,
+      tx + 5,
+      startingPoint + 4 * this.segmentLength,
+      '1',
+      4,
+      true,
+    );
+    this.addText(
+      0,
+      tx + 5,
+      startingPoint + 5 * this.segmentLength,
+      '0',
+      4,
+      true,
+    );
+  }
+
+  private add5ESpellSlots() {
+    this.addSlider(5, 0, 10, 100);
+    this.addSlider(4, 0, 20, 100 + this.segmentLength);
+    this.addSlider(4, 0, 30, 100 + this.segmentLength);
+    this.addSlider(4, 0, 40, 100 + this.segmentLength);
+    this.addSlider(4, 0, 50, 100 + this.segmentLength);
+    this.addSlider(3, 0, 60, 100 + 2 * this.segmentLength);
+    this.addSlider(3, 0, 70, 100 + 2 * this.segmentLength);
+    this.addSlider(2, 0, 80, 100 + 3 * this.segmentLength);
+    this.addSlider(2, 0, 90, 100 + 3 * this.segmentLength);
+    this.addText(0, 60, 88, 'Spell Slots', 8);
+    this.addText(0, 10, 98, '1', 8);
+    this.addText(0, 20, 98, '2', 8);
+    this.addText(0, 30, 98, '3', 8);
+    this.addText(0, 40, 98, '4', 8);
+    this.addText(0, 50, 98, '5', 8);
+    this.addText(0, 60, 98, '6', 8);
+    this.addText(0, 70, 98, '7', 8);
+    this.addText(0, 80, 98, '8', 8);
+    this.addText(0, 90, 98, '9', 8);
+    const startingPoint = 100 + this.sliderRadius + 0.4;
+    this.addText(0, 5, startingPoint, '4', 4, true);
+    this.addText(0, 5, startingPoint + 1 * this.segmentLength, '3', 4, true);
+    this.addText(0, 5, startingPoint + 2 * this.segmentLength, '2', 4, true);
+    this.addText(0, 5, startingPoint + 3 * this.segmentLength, '1', 4, true);
+    this.addText(0, 5, startingPoint + 4 * this.segmentLength, '0', 4, true);
   }
   //eventually pull saved file and update this value here
   private createForm() {
@@ -652,7 +762,7 @@ export class D3containerComponent implements OnInit {
     const angleDiffDeg = 360 / 10;
 
     const originX = (this.plateWidth + 4) / 2;
-    const originY = (this.plateWidth + 4) / 2;
+    const originY = (this.plateWidth + 4) / 2; // + 4 adds a bubble of 2 on each side
     const svgGroup = d3.select('#svgContainer svg');
 
     svgGroup
@@ -798,18 +908,59 @@ export class D3containerComponent implements OnInit {
     });
   }
 
+  public getFontSize(
+    inputText: string,
+    fontSize: number,
+  ): { x: number; y: number; width: number; height: number } {
+    const tbbox = { x: 0, y: 0, width: 0, height: 0 };
+    const textGroup = d3
+      .select('#svgContainer svg')
+      .append('text')
+      .attr('text-anchor', 'left')
+      .style('stroke', this.lineColor)
+      .style('stroke-width', 0.25)
+      .style('fill', this.lineColor)
+      .style('font-size', fontSize + 'px')
+      .style('opacity', 0)
+      .attr('text-anchor', 'start')
+      .attr('alignment-baseline', 'middle')
+      .style('font-family', 'Droid Sans, Open Sans, Arial, Roboto')
+      .text(inputText);
+    const tGNode = textGroup.node();
+    if (tGNode) {
+      const textBBox = tGNode.getBBox();
+      tbbox.x = textBBox.x;
+      tbbox.y = textBBox.y;
+      tbbox.width = textBBox.width;
+      tbbox.height = textBBox.height;
+    }
+    textGroup.remove();
+    return tbbox;
+  }
+
+  /** It appears that text translate is bottom Left corner of text. Text height is the distance of roughly
+   * (exactly?) 3 equal segments with the top two segments being standard lower and upper case letters, and the
+   * bottom segment being lower case qypgj. So for numbers that we want centered we add height / 3 to the
+   * y translate value. Is it perfect? Probably not, but it's really close.
+   */
   public addText(
     rotation: number,
     translationX: number,
     translationY: number,
     inputText: string,
     fontSize: number,
+    yTranslateCentered?: boolean,
   ) {
+    const testBBox = this.getFontSize(inputText, fontSize);
+    const testHeight =
+      typeof yTranslateCentered !== 'undefined'
+        ? translationY + testBBox.height / 3
+        : translationY;
     const textGroup = d3
       .select('#svgContainer svg')
       .append('text')
       .attr('x', translationX)
-      .attr('y', translationY)
+      .attr('y', testHeight)
       .attr('text-anchor', 'left')
       .style('stroke', this.lineColor)
       .style('stroke-width', 0.25)
@@ -820,6 +971,24 @@ export class D3containerComponent implements OnInit {
       .attr('transform', 'rotate(' + rotation + ')')
       .style('font-family', 'Droid Sans, Open Sans, Arial, Roboto')
       .text(inputText);
+    /*d3.select('#svgContainer svg')
+      .append('path')
+      .attr(
+        'd',
+        d3.arc()({
+          innerRadius: 0.5,
+          outerRadius: 0.6,
+          startAngle: 0,
+          endAngle: 2 * Math.PI,
+        }),
+      )
+      .attr(
+        'transform',
+        'translate(' + translationX + ', ' + translationY + ')',
+      )
+      .style('stroke', '#ff0000')
+      .style('stroke-width', 0.25)
+      .style('fill', '#ff0000'); */
     const tGNode = textGroup.node();
     if (tGNode) {
       const textBBox = tGNode.getBBox();
@@ -829,9 +998,9 @@ export class D3containerComponent implements OnInit {
         textBBox.right,
         textBBox.bottom,
       );
-      console.log(textBBox);
+      //console.log(textBBox);
       this.modulesList.push({
-        type: 1,
+        type: 2,
         data: [
           rotation,
           translationX,

@@ -30,8 +30,8 @@ const editorData: EditorData = {
   boundingBox: {
     minX: 20,
     minY: 20,
-    maxX: 141.8,
-    maxY: 141.8,
+    maxX: 147.8,
+    maxY: 184.8,
   },
 };
 let layer1Height;

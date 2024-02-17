@@ -71,8 +71,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     boundingBox: {
       minX: 20,
       minY: 20,
-      maxX: 141.8,
-      maxY: 141.8,
+      maxX: 147.8,
+      maxY: 184.8,
     },
   };
 
@@ -109,6 +109,41 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   ];
   private modulesList = [
     {
+      type: 0,
+      data: [2, 90, 20, 10],
+    },
+    {
+      type: 0,
+      data: [3, 90, 20, 20],
+    },
+    {
+      type: 0,
+      data: [4, 90, 20, 30],
+    },
+    {
+      type: 0,
+      data: [5, 90, 20, 40],
+    },
+    {
+      type: 0,
+      data: [2, 0, 100, 20],
+    },
+    {
+      type: 0,
+      data: [3, 0, 110, 20],
+    },
+    {
+      type: 0,
+      data: [4, 0, 120, 20],
+    },
+    {
+      type: 0,
+      data: [5, 0, 130, 20],
+    },
+  ];
+
+  private moreSpellSlotsModulesList = [
+    {
       type: 1,
       data: [20, 20],
     },
@@ -122,200 +157,331 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     },
     {
       type: 2,
-      data: [0, 60, 10, 'Life Total', 34.51333999633789, 9.041501998901367],
+      data: [0, 60, 10, 'Life Total', 34.5146598815918, 9.033281326293945],
     },
     {
       type: 0,
-      data: [6, 0, 15, 80],
-    },
-    {
-      type: 0,
-      data: [5, 0, 26.1, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 37.2, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 48.300000000000004, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 59.400000000000006, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 70.5, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 81.60000000000001, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 92.70000000000002, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 103.80000000000001, 86.3],
-    },
-    {
-      type: 0,
-      data: [5, 0, 114.9, 86.3],
-    },
-    {
-      type: 0,
-      data: [3, 0, 126.00000000000001, 98.9],
+      data: [6, 0, 10, 80],
     },
     {
       type: 2,
-      data: [0, 65, 68, 'Spell Slots', 40.538536071777344, 9.041501998901367],
+      data: [0, 10, 78, 'C', 6.026149272918701, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [5, 0, 21.1, 86.3],
     },
     {
       type: 2,
-      data: [0, 15, 78, 'C', 6.025197505950928, 9.041501998901367],
+      data: [0, 21.1, 78, '1', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [5, 0, 32.2, 86.3],
     },
     {
       type: 2,
-      data: [0, 26.1, 78, '1', 4.6986165046691895, 9.041501998901367],
+      data: [0, 32.2, 78, '2', 4.698890686035156, 9.033281326293945],
     },
     {
-      type: 2,
-      data: [0, 37.2, 78, '2', 4.6986165046691895, 9.041501998901367],
+      type: 0,
+      data: [5, 0, 43.300000000000004, 86.3],
     },
     {
       type: 2,
       data: [
         0,
-        48.300000000000004,
+        43.300000000000004,
         78,
         '3',
-        4.6986165046691895,
-        9.041501998901367,
+        4.698890686035156,
+        9.033281326293945,
       ],
+    },
+    {
+      type: 0,
+      data: [5, 0, 54.400000000000006, 86.3],
     },
     {
       type: 2,
       data: [
         0,
-        59.400000000000006,
+        54.400000000000006,
         78,
         '4',
-        4.6986165046691895,
-        9.041501998901367,
+        4.698890686035156,
+        9.033281326293945,
       ],
     },
     {
+      type: 0,
+      data: [5, 0, 65.5, 86.3],
+    },
+    {
       type: 2,
-      data: [0, 70.5, 78, '5', 4.6986165046691895, 9.041501998901367],
+      data: [0, 65.5, 78, '5', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [5, 0, 76.60000000000001, 86.3],
     },
     {
       type: 2,
       data: [
         0,
-        81.60000000000001,
+        76.60000000000001,
         78,
         '6',
-        4.6986165046691895,
-        9.041501998901367,
+        4.698890686035156,
+        9.033281326293945,
       ],
+    },
+    {
+      type: 0,
+      data: [5, 0, 87.70000000000002, 86.3],
     },
     {
       type: 2,
       data: [
         0,
-        92.70000000000002,
+        87.70000000000002,
         78,
         '7',
-        4.6986165046691895,
-        9.041501998901367,
+        4.698890686035156,
+        9.033281326293945,
       ],
+    },
+    {
+      type: 0,
+      data: [5, 0, 98.80000000000001, 86.3],
     },
     {
       type: 2,
       data: [
         0,
-        103.80000000000001,
+        98.80000000000001,
         78,
         '8',
-        4.6986165046691895,
-        9.041501998901367,
+        4.698890686035156,
+        9.033281326293945,
       ],
     },
     {
+      type: 0,
+      data: [5, 0, 109.9, 86.3],
+    },
+    {
       type: 2,
-      data: [0, 114.9, 78, '9', 4.6986165046691895, 9.041501998901367],
+      data: [0, 109.9, 78, '9', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [3, 0, 121.00000000000001, 98.9],
     },
     {
       type: 2,
       data: [
         0,
-        126.00000000000001,
+        121.00000000000001,
         78,
         '10',
-        9.397233009338379,
-        9.041501998901367,
+        9.397781372070312,
+        9.033281326293945,
       ],
     },
     {
       type: 2,
       data: [
         0,
-        10,
+        5,
         84.05000000000001,
         '5',
-        2.472825765609741,
-        4.5948615074157715,
+        2.474247455596924,
+        4.635499477386475,
       ],
     },
     {
       type: 2,
       data: [
         0,
-        10,
+        5,
         90.35000000000001,
         '4',
-        2.472825765609741,
-        4.5948615074157715,
+        2.474247455596924,
+        4.635499477386475,
       ],
     },
     {
       type: 2,
-      data: [0, 10, 96.65, '3', 2.472825765609741, 4.5948615074157715],
+      data: [0, 5, 96.65, '3', 2.474247455596924, 4.635499477386475],
     },
     {
       type: 2,
       data: [
         0,
-        10,
+        5,
         102.95000000000002,
         '2',
-        2.472825765609741,
-        4.5948615074157715,
+        2.474247455596924,
+        4.635499477386475,
       ],
     },
     {
       type: 2,
       data: [
         0,
-        10,
+        5,
         109.25000000000001,
         '1',
-        2.472825765609741,
-        4.5948615074157715,
+        2.474247455596924,
+        4.635499477386475,
       ],
     },
     {
       type: 2,
       data: [
         0,
-        10,
+        5,
         115.55000000000001,
         '0',
-        2.472825765609741,
-        4.5948615074157715,
+        2.474247455596924,
+        4.635499477386475,
       ],
+    },
+    {
+      type: 2,
+      data: [0, 40, 68, 'Spell Slots', 40.5388298034668, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [5, 0, 50, 150],
+    },
+    {
+      type: 2,
+      data: [0, 50, 148, '1', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [4, 0, 61.1, 156.3],
+    },
+    {
+      type: 2,
+      data: [0, 61.1, 148, '2', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [4, 0, 72.2, 156.3],
+    },
+    {
+      type: 2,
+      data: [0, 72.2, 148, '3', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [4, 0, 83.30000000000001, 156.3],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        83.30000000000001,
+        148,
+        '4',
+        4.698890686035156,
+        9.033281326293945,
+      ],
+    },
+    {
+      type: 0,
+      data: [4, 0, 94.4, 156.3],
+    },
+    {
+      type: 2,
+      data: [0, 94.4, 148, '5', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [3, 0, 105.5, 162.6],
+    },
+    {
+      type: 2,
+      data: [0, 105.5, 148, '6', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 0,
+      data: [3, 0, 116.60000000000001, 162.6],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        116.60000000000001,
+        148,
+        '7',
+        4.698890686035156,
+        9.033281326293945,
+      ],
+    },
+    {
+      type: 0,
+      data: [2, 0, 127.70000000000002, 168.9],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        127.70000000000002,
+        148,
+        '8',
+        4.698890686035156,
+        9.033281326293945,
+      ],
+    },
+    {
+      type: 0,
+      data: [2, 0, 138.8, 168.9],
+    },
+    {
+      type: 2,
+      data: [0, 138.8, 148, '9', 4.698890686035156, 9.033281326293945],
+    },
+    {
+      type: 2,
+      data: [0, 45, 154.05, '4', 2.474247455596924, 4.635499477386475],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        45,
+        160.35000000000002,
+        '3',
+        2.474247455596924,
+        4.635499477386475,
+      ],
+    },
+    {
+      type: 2,
+      data: [0, 45, 166.65, '2', 2.474247455596924, 4.635499477386475],
+    },
+    {
+      type: 2,
+      data: [
+        0,
+        45,
+        172.95000000000002,
+        '1',
+        2.474247455596924,
+        4.635499477386475,
+      ],
+    },
+    {
+      type: 2,
+      data: [0, 45, 179.25, '0', 2.474247455596924, 4.635499477386475],
+    },
+    {
+      type: 2,
+      data: [0, 80, 138, 'Spell Slots', 40.5388298034668, 9.033281326293945],
     },
   ];
 
@@ -396,7 +562,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       worker.onmessage = ({ data }) => {
         this.scene.add(this.objectLoader.parse(data));
       };
-      worker.postMessage(this.modulesList);
+      worker.postMessage(this.moreSpellSlotsModulesList);
     } else {
       // Web workers are not supported in this environment.
       // You should add a fallback so that your program still executes correctly.
@@ -409,6 +575,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         }
       });
     }
+    this.createLayer3(this.moreSpellSlotsModulesList);
   }
 
   private getAspectRatio() {
@@ -1053,7 +1220,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return textObj;
   }
 
-  private createLayer3() {
+  private createLayer3(modulesList?: any[]) {
     //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
     const length =
       this.editorData.boundingBox.maxX +
@@ -1079,7 +1246,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const layer3Base = new THREE.Mesh(geometry, material);
     layer3Base.position.set(length / 2, -height / 2 + 5, depth / 2); //top should be at 0
     layer3Base.updateMatrix();
-    for (const module of this.modulesList) {
+    //this.scene.add(layer3Base);
+    let layer3CSG = CSG.fromMesh(layer3Base);
+    for (const module of modulesList ? modulesList : this.modulesList) {
       if (module['type'] === 0) {
         const slider = this.addSliderLayer3(
           Number(module['data'][0]),
@@ -1087,7 +1256,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           Number(module['data'][2]),
           Number(module['data'][3]),
         );
-        //this.scene.add(slider);
+        layer3CSG = layer3CSG.subtract(slider);
       } else if (module['type'] === 1) {
         const dialCircle = this.addDialLayer3(
           Number(module['data'][0]),
@@ -1098,22 +1267,161 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         continue;
       }
     }
+    const layer3 = CSG.toMesh(layer3CSG, layer3Base.matrix, material);
+    this.scene.add(layer3);
+    return layer3;
   }
 
+  /**Need to maintain a new slider Length and width but translate based on Layer 1's numbers */
   private addSliderLayer3(
     length: number,
     rotation: number,
     translateX: number,
     translateY: number,
   ) {
+    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const w =
+      this.editorData.derivedVals.sliderRadius * 2 +
+      2 +
+      2 * this.editorData.partGapWidth; //extra 1 on each end
     //window with rounded end caps - union cube and cylinders at either end
     const rectLength = this.editorData.derivedVals.segmentLength * (length - 1);
     const r =
       this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
+    const height = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+    const endGeometry = new THREE.CylinderGeometry(r, r, height, 32);
+    const material = new THREE.MeshStandardMaterial({ color: 0xfffff0 });
+    const tY = -height / 2 + 5 + 1;
+    let newX, newZ, tL, tD, mCSG;
     if (rotation === 0) {
       //vertical
+      tL = w;
+      tD = l;
+      newX = translateX + w / 2;
+      newZ = translateY + l / 2;
+      //newX = translateX + r + 1 + this.editorData.partGapWidth;
+      //newZ = translateY + rectLength / 2 + 1 + this.editorData.partGapWidth;
+      const firstCylZ = newZ - rectLength / 2;
+      const midGeometry = new THREE.BoxGeometry(2 * r, height, rectLength);
+      const midMesh = new THREE.Mesh(midGeometry, material);
+      midMesh.position.set(newX, tY, newZ);
+      midMesh.updateMatrix();
+      const topMesh = new THREE.Mesh(endGeometry, material);
+      topMesh.position.set(newX, tY, firstCylZ);
+      topMesh.updateMatrix();
+      const bottomMesh = new THREE.Mesh(endGeometry, material);
+      bottomMesh.position.set(newX, tY, firstCylZ + rectLength);
+      bottomMesh.updateMatrix();
+      mCSG = CSG.fromMesh(midMesh);
+      const tCSG = CSG.fromMesh(topMesh);
+      const bCSG = CSG.fromMesh(bottomMesh);
+      mCSG = mCSG.union(tCSG);
+      mCSG = mCSG.union(bCSG);
+      //sliderLayer3 = CSG.toMesh(mCSG, midMesh.matrix, material);
     } else {
+      tL = l;
+      tD = w;
+      newX = translateX + l / 2;
+      newZ = translateY + w / 2;
+      const firstCylX = newX - rectLength / 2;
+      const midGeometry = new THREE.BoxGeometry(rectLength, height, 2 * r);
+      const midMesh = new THREE.Mesh(midGeometry, material);
+      midMesh.position.set(newX, tY, newZ);
+      midMesh.updateMatrix();
+      const leftMesh = new THREE.Mesh(endGeometry, material);
+      leftMesh.position.set(firstCylX, tY, newZ);
+      leftMesh.updateMatrix();
+      const rightMesh = new THREE.Mesh(endGeometry, material);
+      rightMesh.position.set(firstCylX + rectLength, tY, newZ);
+      rightMesh.updateMatrix();
+      mCSG = CSG.fromMesh(midMesh);
+      const rCSG = CSG.fromMesh(rightMesh);
+      const lCSG = CSG.fromMesh(leftMesh);
+      mCSG = mCSG.union(rCSG);
+      mCSG = mCSG.union(lCSG);
+      //sliderLayer3 = CSG.toMesh(mCSG, midMesh.matrix, material);
     }
+    return mCSG;
+  }
+
+  private convenientCopyOfSliderLayer1(
+    length: number,
+    rotation: number,
+    translateX: number,
+    translateY: number,
+  ) {
+    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const w =
+      this.editorData.derivedVals.sliderRadius * 2 +
+      2 +
+      2 * this.editorData.partGapWidth; //extra 1 on each end
+    const h =
+      this.editorData.partGapWidth +
+      this.editorData.minWallWidth +
+      this.editorData.textDepth +
+      this.editorData.magnetHeight +
+      1; // want this sticking out of surface of base cube by 1
+    let tL, tD, newX, newZ;
+    const cylArr = [],
+      //bottom of track cube minus half of height plus 1
+      bottomOfTrackCube = -h + 1,
+      magYTranslate =
+        1 +
+        bottomOfTrackCube -
+        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
+    if (rotation === 0) {
+      //vertical
+      tL = w;
+      tD = l;
+      newX = translateX + w / 2;
+      newZ = translateY + l / 2;
+      const firstCylZ =
+        1 + translateY + this.editorData.derivedVals.segmentLength / 2;
+      for (let i = 0; i < length; i++) {
+        cylArr.push(
+          this.addMagCyl(
+            newX,
+            magYTranslate,
+            firstCylZ + i * this.editorData.derivedVals.segmentLength,
+          ),
+        );
+      }
+    } else {
+      tL = l;
+      tD = w;
+      const firstCylX =
+        1 + translateX + this.editorData.derivedVals.segmentLength / 2;
+      newX = translateX + l / 2;
+      newZ = translateY + w / 2;
+      for (let i = 0; i < length; i++) {
+        cylArr.push(
+          this.addMagCyl(
+            firstCylX + i * this.editorData.derivedVals.segmentLength,
+            magYTranslate,
+            newZ,
+          ),
+        );
+      }
+    }
+    const geometry = new THREE.BoxGeometry(tL, h, tD);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    //material.setValues({ opacity: 0.5, transparent: true });
+    const trackCube = new THREE.Mesh(geometry, material);
+    trackCube.position.set(newX, -h / 2 + 1, newZ);
+    trackCube.updateMatrix();
+    let trackCSG = CSG.fromMesh(trackCube, 0);
+    let cylIndex = 1;
+    for (const cyl of cylArr) {
+      const cylCSG = CSG.fromMesh(cyl, cylIndex);
+      trackCSG = trackCSG.union(cylCSG);
+      cylIndex++;
+    }
+    const trackMesh = CSG.toMesh(
+      trackCSG,
+      trackCube.matrix,
+      trackCube.material,
+    );
+    return trackMesh;
   }
 
   private addDialLayer3(tX: number, tY: number) {

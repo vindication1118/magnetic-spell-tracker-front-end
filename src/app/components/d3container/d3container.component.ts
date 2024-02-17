@@ -178,8 +178,16 @@ export class D3containerComponent implements OnInit {
     this.addNumberDialInstance(60, 20);
     this.addNumberDialInstance(100, 20);
     this.addText(0, 60, 10, 'Life Total', 8);
-    this.addPathfinderSorcSpellSlots(5, -20);
-    //this.add5ESpellSlots();
+    /*this.addSlider(2, 90, 20, 10);
+    this.addSlider(3, 90, 20, 20);
+    this.addSlider(4, 90, 20, 30);
+    this.addSlider(5, 90, 20, 40);
+    this.addSlider(2, 0, 100, 20);
+    this.addSlider(3, 0, 110, 20);
+    this.addSlider(4, 0, 120, 20);
+    this.addSlider(5, 0, 130, 20); */
+    this.proceduralPathfinder2eSpellSlots(10, 80);
+    this.proceduralDND5eSpellSlots(50, 150);
 
     const res = this.parseTransform(`rotate(-10 50 100)
     translate(-36 45.5)
@@ -187,6 +195,65 @@ export class D3containerComponent implements OnInit {
     scale(1 0.5)`);
     console.log(res);
     console.log(this.modulesList);
+  }
+
+  private proceduralSliderGrid(
+    label: string,
+    grid: { labels: string[]; maxSlots: number[] },
+    tx: number,
+    ty: number,
+  ) {
+    const tXDist =
+      this.sliderRadius * 2 +
+      2 +
+      2 * this.printOptionsForm.controls['partGapWidth'].value +
+      this.printOptionsForm.controls['minWallWidth'].value;
+    const largestSlotNumber = Math.max(...grid.maxSlots);
+    for (const [i, value] of grid.labels.entries()) {
+      this.addSlider(
+        grid.maxSlots[i] + 1,
+        0,
+        tx + i * tXDist,
+        ty + this.segmentLength * (largestSlotNumber - grid.maxSlots[i]),
+      );
+      this.addText(0, tx + i * tXDist, ty - 2, value, 8);
+    }
+    const startingPoint = ty + this.sliderRadius + 0.4;
+    for (let i = largestSlotNumber; i >= 0; i--) {
+      this.addText(
+        0,
+        tx - 5,
+        startingPoint + (largestSlotNumber - i) * this.segmentLength,
+        i + '',
+        4,
+        true,
+      );
+    }
+    this.addText(0, tx + 30, ty - 12, label, 8);
+  }
+
+  private proceduralPathfinder2eSpellSlots(tx: number, ty: number) {
+    const label = 'Spell Slots';
+    const xLabels = ['C', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+    const slots = [5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2];
+    this.proceduralSliderGrid(
+      label,
+      { labels: xLabels, maxSlots: slots },
+      tx,
+      ty,
+    );
+  }
+
+  private proceduralDND5eSpellSlots(tx: number, ty: number) {
+    const label = 'Spell Slots';
+    const xLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    const slots = [4, 3, 3, 3, 3, 2, 2, 1, 1];
+    this.proceduralSliderGrid(
+      label,
+      { labels: xLabels, maxSlots: slots },
+      tx,
+      ty,
+    );
   }
 
   private addPathfinderSorcSpellSlots(tx: number, ty: number) {

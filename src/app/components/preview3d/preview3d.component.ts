@@ -1258,10 +1258,18 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         );
         layer3CSG = layer3CSG.subtract(slider);
       } else if (module['type'] === 1) {
-        const dialCircle = this.addDialLayer3(
+        const dialWindow = this.addDialWindowLayer3(
           Number(module['data'][0]),
+          -height / 2 + 5 + 1,
           Number(module['data'][1]),
         );
+        layer3CSG = layer3CSG.subtract(dialWindow);
+        const knobHole = this.addDialKnobLayer3(
+          Number(module['data'][0]),
+          -height / 2 + 5 + 1,
+          Number(module['data'][1]),
+        );
+        layer3CSG = layer3CSG.subtract(knobHole);
         //this.scene.add(dialCircle);
       } else if (module['type'] === 2) {
         continue;
@@ -1344,88 +1352,41 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return mCSG;
   }
 
-  private convenientCopyOfSliderLayer1(
-    length: number,
-    rotation: number,
-    translateX: number,
-    translateY: number,
-  ) {
-    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
-    const w =
-      this.editorData.derivedVals.sliderRadius * 2 +
-      2 +
-      2 * this.editorData.partGapWidth; //extra 1 on each end
-    const h =
-      this.editorData.partGapWidth +
-      this.editorData.minWallWidth +
-      this.editorData.textDepth +
-      this.editorData.magnetHeight +
-      1; // want this sticking out of surface of base cube by 1
-    let tL, tD, newX, newZ;
-    const cylArr = [],
-      //bottom of track cube minus half of height plus 1
-      bottomOfTrackCube = -h + 1,
-      magYTranslate =
-        1 +
-        bottomOfTrackCube -
-        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
-    if (rotation === 0) {
-      //vertical
-      tL = w;
-      tD = l;
-      newX = translateX + w / 2;
-      newZ = translateY + l / 2;
-      const firstCylZ =
-        1 + translateY + this.editorData.derivedVals.segmentLength / 2;
-      for (let i = 0; i < length; i++) {
-        cylArr.push(
-          this.addMagCyl(
-            newX,
-            magYTranslate,
-            firstCylZ + i * this.editorData.derivedVals.segmentLength,
-          ),
-        );
-      }
-    } else {
-      tL = l;
-      tD = w;
-      const firstCylX =
-        1 + translateX + this.editorData.derivedVals.segmentLength / 2;
-      newX = translateX + l / 2;
-      newZ = translateY + w / 2;
-      for (let i = 0; i < length; i++) {
-        cylArr.push(
-          this.addMagCyl(
-            firstCylX + i * this.editorData.derivedVals.segmentLength,
-            magYTranslate,
-            newZ,
-          ),
-        );
-      }
-    }
-    const geometry = new THREE.BoxGeometry(tL, h, tD);
-    const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-    //material.setValues({ opacity: 0.5, transparent: true });
-    const trackCube = new THREE.Mesh(geometry, material);
-    trackCube.position.set(newX, -h / 2 + 1, newZ);
-    trackCube.updateMatrix();
-    let trackCSG = CSG.fromMesh(trackCube, 0);
-    let cylIndex = 1;
-    for (const cyl of cylArr) {
-      const cylCSG = CSG.fromMesh(cyl, cylIndex);
-      trackCSG = trackCSG.union(cylCSG);
-      cylIndex++;
-    }
-    const trackMesh = CSG.toMesh(
-      trackCSG,
-      trackCube.matrix,
-      trackCube.material,
-    );
-    return trackMesh;
+  private addDialWindowLayer3(tX: number, tY: number, tZ: number) {
+    const l = this.editorData.derivedVals.knobWidth + 3,
+      w = this.editorData.derivedVals.knobWidth + 1,
+      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+    //hole for dial knob, window for dial numerals
+    const newR = this.editorData.derivedVals.knobWidth + l / 2;
+
+    const theta = Math.PI / 2;
+    const newXVal =
+      tX + this.editorData.derivedVals.plateWidth / 2 + newR * Math.cos(theta);
+    const newZVal =
+      tZ + this.editorData.derivedVals.plateWidth / 2 + newR * Math.sin(theta);
+    const geometry = new THREE.BoxGeometry(w, h, l);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const divotBox = new THREE.Mesh(geometry, material);
+    divotBox.position.set(newXVal, tY, newZVal);
+    divotBox.updateMatrix();
+    return CSG.fromMesh(divotBox);
   }
 
-  private addDialLayer3(tX: number, tY: number) {
-    //hole for dial knob, window for dial numerals
+  private addDialKnobLayer3(tX: number, tY: number, tZ: number) {
+    const r =
+        this.editorData.derivedVals.knobWidth / 2 +
+        this.editorData.partGapWidth,
+      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+    const geometry = new THREE.CylinderGeometry(r, r, h, 32);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const knobHole = new THREE.Mesh(geometry, material);
+    knobHole.position.set(
+      tX + this.editorData.derivedVals.plateWidth / 2,
+      tY,
+      tZ + this.editorData.derivedVals.plateWidth / 2,
+    );
+    knobHole.updateMatrix();
+    return CSG.fromMesh(knobHole);
   }
 
   private addTextLayer3() {

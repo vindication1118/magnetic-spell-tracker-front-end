@@ -681,14 +681,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
           l1BCSG = l1BCSG.subtract(dialCSG);
         } else if (module['type'] === 2) {
-          this.addText(
-            Number(module['data'][0]),
-            Number(module['data'][1]),
-            Number(module['data'][2]),
-            module['data'][3] + '',
-            Number(module['data'][4]),
-            Number(module['data'][5]),
-          );
+          continue;
         }
         moduleIndex++;
       }
@@ -840,6 +833,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   //use after adding bounding cube and boolean diff with layer elsewhere
   //X and Z translation Values mark bottom LEFT corner IE bottom of first character in string
+  //Calculate Divot in here based on text bounding box, return an object of form:
+  // {textCSG: textCSG, divotCSG: divotCSG}
   private addText(
     rotation: number,
     translationX: number,
@@ -848,7 +843,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     width: number,
     height: number,
     translationY?: number,
-  ): THREE.Mesh {
+  ): { text: CSG; divot: CSG } {
     const h = this.editorData.textDepth;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
@@ -876,9 +871,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       //zWidth = 1;
     }
     //console.log(xWidth + ', ' + yWidth + ', ' + zWidth);
-    //const boxGeo = new THREE.BoxGeometry(xWidth, yWidth, zWidth);
-    //const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
-    //const bboxBox = new THREE.Mesh(boxGeo, boxmaterial);
+
     //this.scene.add(bboxBox);
     const xScale = width / xWidth;
     const yScale = height / yWidth;
@@ -891,8 +884,25 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     }
     myText.position.set(translationX, -h / 2 + translationY, translationZ);
     myText.updateMatrix();
-    return myText;
-    //this.scene.add(myText);
+    myText.geometry.computeBoundingBox();
+    const textCSG = CSG.fromMesh(myText);
+    const divotGeo = myText.geometry.boundingBox;
+    const divotXWidth = divotGeo!.max.x - divotGeo!.min.x;
+    const divotYWidth = divotGeo!.max.y - divotGeo!.min.y; //should be equal to h
+    const divotZWidth = divotGeo!.max.z - divotGeo!.min.z;
+    const boxGeo = new THREE.BoxGeometry(divotXWidth, divotZWidth, divotYWidth);
+    const boxmaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    const divotBoxMesh = new THREE.Mesh(boxGeo, boxmaterial);
+    divotBoxMesh.position.set(
+      translationX + divotXWidth / 2,
+      -h / 2 + translationY,
+      translationZ - (divotYWidth * 2) / 3,
+    );
+    divotBoxMesh.updateMatrix();
+    const divotCSG = CSG.fromMesh(divotBoxMesh);
+    this.scene.add(myText);
+    //this.scene.add(divotBoxMesh);
+    return { text: textCSG, divot: divotCSG };
   }
   /*  */
   private addTextXCentered(
@@ -1272,7 +1282,17 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         layer3CSG = layer3CSG.subtract(knobHole);
         //this.scene.add(dialCircle);
       } else if (module['type'] === 2) {
-        continue;
+        const csgObj = this.addText(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          module['data'][3] + '',
+          Number(module['data'][4]),
+          Number(module['data'][5]),
+          5,
+        );
+        //layer3CSG = layer3CSG.subtract(csgObj.divot);
+        //layer3CSG = layer3CSG.union(csgObj.text);
       }
     }
     const layer3 = CSG.toMesh(layer3CSG, layer3Base.matrix, material);

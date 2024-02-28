@@ -13,6 +13,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatButtonModule } from '@angular/material/button';
+import opentype from 'opentype.js';
+
 @Component({
   selector: 'app-d3container',
   standalone: true,
@@ -177,7 +179,9 @@ export class D3containerComponent implements OnInit {
     this.addNumberDialInstance(20, 20);
     this.addNumberDialInstance(60, 20);
     this.addNumberDialInstance(100, 20);
-    this.addText(0, 60, 10, 'Life Total', 8);
+    //this.addText(0, 60, 10, 'Life Total', 8);
+    this.addPathText(0, 60, 10, 'Viktor', 8);
+    this.addPathText(0, 60, 30, 'Life Total', 8);
     /*this.addSlider(2, 90, 20, 10);
     this.addSlider(3, 90, 20, 20);
     this.addSlider(4, 90, 20, 30);
@@ -186,8 +190,8 @@ export class D3containerComponent implements OnInit {
     this.addSlider(3, 0, 110, 20);
     this.addSlider(4, 0, 120, 20);
     this.addSlider(5, 0, 130, 20); */
-    this.proceduralPathfinder2eSpellSlots(10, 80);
-    this.proceduralDND5eSpellSlots(50, 150);
+    this.proceduralPathfinder2eSpellSlots(10, 90);
+    //this.proceduralDND5eSpellSlots(50, 150);
 
     const res = this.parseTransform(`rotate(-10 50 100)
     translate(-36 45.5)
@@ -216,11 +220,11 @@ export class D3containerComponent implements OnInit {
         tx + i * tXDist,
         ty + this.segmentLength * (largestSlotNumber - grid.maxSlots[i]),
       );
-      this.addText(0, tx + i * tXDist, ty - 2, value, 8);
+      this.addPathText(0, tx + i * tXDist, ty - 2, value, 8);
     }
     const startingPoint = ty + this.sliderRadius + 0.4;
     for (let i = largestSlotNumber; i >= 0; i--) {
-      this.addText(
+      this.addPathText(
         0,
         tx - 5,
         startingPoint + (largestSlotNumber - i) * this.segmentLength,
@@ -229,7 +233,7 @@ export class D3containerComponent implements OnInit {
         true,
       );
     }
-    this.addText(0, tx + 30, ty - 12, label, 8);
+    this.addPathText(0, tx + 30, ty - 12, label, 8);
   }
 
   private proceduralPathfinder2eSpellSlots(tx: number, ty: number) {
@@ -1005,6 +1009,56 @@ export class D3containerComponent implements OnInit {
     return tbbox;
   }
 
+  public getPathFontSize(
+    inputText: string,
+    fontSize: number,
+  ): Promise<{ x: number; y: number; width: number; height: number }> {
+    return new Promise((resolve) => {
+      const tbbox = { x: 0, y: 0, width: 0, height: 0 };
+      const buffer = fetch(
+        '../../../assets/Fonts/M_PLUS_1p/MPLUS1p-ExtraBold.ttf',
+      ).then((res) => res.arrayBuffer());
+      // case 2: from filesystem (node)
+      //const buffer = fs.promises.readFile('./my.woff');
+      // case 3: from an <input type=file id=myfile>
+      //const buffer = document.getElementById('myfile').files[0].arrayBuffer(); - maybe allow this later?
+
+      // if not running in async context:
+      buffer
+        .then((data) => {
+          const font = opentype.parse(data);
+          const path = font.getPath(inputText, 0, 0, fontSize);
+          const svgPath = path.toPathData(5);
+
+          const textGroup = d3
+            .select('#svgContainer svg')
+            .append('path')
+            .attr('d', svgPath)
+            .style('stroke', this.lineColor)
+            .style('stroke-width', 0.25)
+            .style('fill', this.lineColor)
+            .style('opacity', 0);
+
+          const tGNode = textGroup.node();
+          if (tGNode) {
+            const textBBox = tGNode.getBBox();
+            tbbox.x = textBBox.x;
+            tbbox.y = textBBox.y;
+            tbbox.width = textBBox.width;
+            tbbox.height = textBBox.height;
+          }
+          textGroup.remove();
+          resolve(tbbox);
+        })
+        .catch(() => {
+          resolve(tbbox);
+        })
+        .finally(() => {
+          resolve(tbbox);
+        });
+    });
+  }
+
   /** It appears that text translate is bottom Left corner of text. Text height is the distance of roughly
    * (exactly?) 3 equal segments with the top two segments being standard lower and upper case letters, and the
    * bottom segment being lower case qypgj. So for numbers that we want centered we add height / 3 to the
@@ -1078,5 +1132,52 @@ export class D3containerComponent implements OnInit {
         ],
       });
     }
+  }
+
+  public addPathText(
+    rotation: number,
+    translationX: number,
+    translationY: number,
+    inputText: string,
+    fontSize: number,
+    yTranslateCentered?: boolean,
+  ) {
+    // case 1: from an URL
+    const buffer = fetch(
+      '../../../assets/Fonts/M_PLUS_1p/MPLUS1p-ExtraBold.ttf',
+    ).then((res) => res.arrayBuffer());
+    // case 2: from filesystem (node)
+    //const buffer = fs.promises.readFile('./my.woff');
+    // case 3: from an <input type=file id=myfile>
+    //const buffer = document.getElementById('myfile').files[0].arrayBuffer(); - maybe allow this later?
+    const testBBox = this.getPathFontSize(inputText, fontSize);
+    testBBox.then((bbox) => {
+      const testHeight =
+        typeof yTranslateCentered !== 'undefined'
+          ? translationY + bbox.height / 2
+          : translationY;
+      buffer.then((data) => {
+        const font = opentype.parse(data);
+        const path = font.getPath(
+          inputText,
+          translationX,
+          testHeight,
+          fontSize,
+        );
+        const svgPath = path.toPathData(5);
+
+        const textGroup = d3
+          .select('#svgContainer svg')
+          .append('path')
+          .attr('d', svgPath)
+          .style('stroke', this.lineColor)
+          .style('stroke-width', 0.25)
+          .style('fill', this.lineColor);
+        this.modulesList.push({
+          type: 3,
+          data: [rotation, translationX, testHeight, svgPath],
+        });
+      });
+    });
   }
 }

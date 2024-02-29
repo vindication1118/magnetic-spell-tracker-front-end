@@ -1173,11 +1173,19 @@ export class D3containerComponent implements OnInit {
           .style('stroke', this.lineColor)
           .style('stroke-width', 0.25)
           .style('fill', this.lineColor);
+        const textGroupNode = textGroup.node()?.outerHTML;
+        //console.log(textGroupNode);
         this.modulesList.push({
           type: 3,
-          data: [rotation, translationX, testHeight, svgPath],
+          data: [rotation, translationX, testHeight, textGroupNode],
         });
       });
+      this.checkExtremes(
+        bbox.x,
+        bbox.y,
+        bbox.x + bbox.width,
+        bbox.y + bbox.height,
+      );
     });
   }
 }

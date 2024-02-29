@@ -547,7 +547,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           // Create a blob from the STL string
           const blob = new Blob([stlString], { type: 'text/plain' });
           blobs.push(blob);
-          filenames.push(child.name);
+          filenames.push(child.name + '.stl');
         }
       }
     });

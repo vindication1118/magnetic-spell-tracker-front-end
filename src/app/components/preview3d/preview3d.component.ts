@@ -21,6 +21,9 @@ import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { CSG } from '../../utils/CSGMesh';
 import { StlFilenames } from '../../interfaces/stl-filenames';
 import JSZip from 'jszip';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 @Component({
   selector: 'app-preview3d',
@@ -100,6 +103,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   private scene!: THREE.Scene;
   private layer1Height!: number;
+  private composer!: EffectComposer;
+
+  // SSAO pass
+  private ssaoPass!: SSAOPass;
 
   private modulesList: TrackerModule[] = [
     {
@@ -362,7 +369,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     //* Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-    const lightAmbient = new THREE.AmbientLight(0x222222); // soft white light
+    const lightAmbient = new THREE.AmbientLight(0xffffff, 0.5); // soft white light
     this.scene.add(lightAmbient);
     this.lightDirected = new THREE.DirectionalLight(0xffffff, 1.0);
     this.scene.add(this.lightDirected);
@@ -375,7 +382,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     );
     this.scene.add(targetObj);
     this.lightDirected.target = targetObj;
-    this.lightDirected.position.set(0, -1000, 0);
+    this.lightDirected.position.set(0, 1000, 0);
     /* // Markers for the axes. Keep commented for debug
     const xMarker = new THREE.Mesh(
       new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
@@ -409,6 +416,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.camera.position.x = (1 * (bbox.maxX - bbox.minX)) / 2;
     this.camera.position.y = 8000;
     this.camera.position.z = 8000;
+
     if (typeof Worker !== 'undefined') {
       // Create a new
       const worker = new Worker(new URL('./3d.worker', import.meta.url), {
@@ -453,7 +461,22 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       logarithmicDepthBuffer: true,
+      powerPreference: 'low-power',
     });
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+    // SSAO pass
+    this.ssaoPass = new SSAOPass(
+      this.scene,
+      this.camera,
+      this.canvas.clientWidth,
+      this.canvas.clientHeight,
+    );
+    this.ssaoPass.kernelRadius = 32;
+    this.ssaoPass.minDistance = 0.05;
+    this.ssaoPass.maxDistance = 0.1;
+    this.composer.addPass(this.ssaoPass);
     this.renderer.setPixelRatio(devicePixelRatio);
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);

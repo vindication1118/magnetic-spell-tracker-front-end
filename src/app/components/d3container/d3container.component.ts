@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormGroup,
@@ -31,7 +31,7 @@ import opentype from 'opentype.js';
   templateUrl: './d3container.component.html',
   styleUrl: './d3container.component.scss',
 })
-export class D3containerComponent implements OnInit {
+export class D3containerComponent implements OnInit, AfterViewInit {
   private lineColor: string = '#badbed';
   private fb!: FormBuilder;
   public printOptionsForm!: FormGroup;
@@ -56,6 +56,9 @@ export class D3containerComponent implements OnInit {
   ngOnInit() {
     this.createForm();
     this.updateDerivedVars();
+  }
+
+  ngAfterViewInit() {
     this.initSVGEditorCanvas();
     console.log(this.boundingBox);
   }

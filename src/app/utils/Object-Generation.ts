@@ -1,4 +1,4 @@
-import { TrackerModule } from '../interfaces/tracker-module';
+import { TrackerModule, TextModule } from '../interfaces/tracker-module';
 import { CSG } from './CSGMesh';
 import * as THREE from 'three';
 import { EditorData } from '../interfaces/editor-data';
@@ -6,12 +6,12 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 //import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.json';
-import { ThreePath } from './Three-Path';
 
 class SpellTracker {
   public editorData!: EditorData;
   public layer1Height!: number;
   public modulesList!: TrackerModule[];
+  private objectLoader = new THREE.ObjectLoader();
 
   constructor(editorData: EditorData, modulesList: TrackerModule[]) {
     this.editorData = editorData;
@@ -695,7 +695,8 @@ class SpellTracker {
           layer3CSG = layer3CSG.subtract(csgObj.divot);
           layer3CSG = layer3CSG.union(csgObj.text);
         } else if (module['type'] === 3) {
-          const csgObj = this.addTextLayer3(module['data'][3] as string);
+          const textModule = module as TextModule;
+          const csgObj = this.addTextLayer3(textModule['meshJSON']);
           layer3CSG = layer3CSG.union(csgObj);
         }
       }
@@ -810,49 +811,10 @@ class SpellTracker {
     return CSG.fromMesh(knobHole);
   }
 
-  public addTextLayer3(svgPathNode: string): CSG {
-    const layer3Height =
-      this.editorData.minWallWidth + this.editorData.textDepth;
-    const yTranslate = layer3Height / 2 + 5 - this.editorData.textDepth;
-    //boolean difference rectangle, union text
-    //console.log('Test 1');
-    const loader = new ThreePath();
-    const data = loader.parse(svgPathNode);
-    const paths = data.paths;
-    console.log('Test 1');
-
-    const shapes = [];
-
-    for (let i = 0; i < paths.length; i++) {
-      const path = paths[i];
-
-      const shapesTemp = path.toShapes(true);
-      shapes.push(...shapesTemp);
-    }
-
-    // Assuming you want to extrude the shape
-    const extrudeSettings = {
-      steps: 2,
-      depth: this.editorData.textDepth * 2,
-      bevelEnabled: false,
-      bevelThickness: 0,
-      bevelSize: 0,
-      bevelOffset: 0,
-      bevelSegments: 0,
-    };
-
-    const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.set(Math.PI / 2, 0, 0);
-    mesh.position.y = yTranslate;
-    mesh.updateMatrix();
+  public addTextLayer3(meshJSON: object): CSG {
+    const mesh = this.objectLoader.parse(meshJSON) as THREE.Mesh;
     const textCSG = CSG.fromMesh(mesh);
     return textCSG;
-
-    // Add the mesh to your scene
-
-    //this.scene.add(mesh);
   }
 }
 

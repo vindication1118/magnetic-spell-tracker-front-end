@@ -16,9 +16,8 @@ import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { saveAs } from 'file-saver';
 import { MatButtonModule } from '@angular/material/button';
 import { EditorData } from '../../interfaces/editor-data';
-import { TrackerModule } from '../../interfaces/tracker-module';
+import { TrackerModule, TextModule } from '../../interfaces/tracker-module';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
-import { CSG } from '../../utils/CSGMesh';
 import { StlFilenames } from '../../interfaces/stl-filenames';
 import JSZip from 'jszip';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -416,6 +415,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.camera.position.x = (1 * (bbox.maxX - bbox.minX)) / 2;
     this.camera.position.y = 8000;
     this.camera.position.z = 8000;
+    this.generateLayer3TextMeshes();
 
     if (typeof Worker !== 'undefined') {
       // Create a new
@@ -439,10 +439,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           this.scene.add(mesh);
         }
       });
+      this.tracker.createLayer3().then((layer3) => {
+        this.scene.add(layer3);
+      });
     }
-    this.createLayer3().then((layer3) => {
-      this.scene.add(layer3);
-    });
   }
 
   private getAspectRatio() {
@@ -523,11 +523,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
   }
-  public oldoutputSTL() {
-    const result = this.exporter.parse(this.scene, this.exporterOptions);
-    const blob = new Blob([result], { type: 'text/plain' });
-    saveAs(blob, 'my-test.stl');
-  }
 
   // Function to export and download each object as STL
   // names are 'sliderLayer2', 'dialLayer2', 'layer1', 'layer3'
@@ -544,7 +539,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       sliderLayer2: 0,
       dialLayer2: 0,
     };
-    this.scene.children.forEach((child: THREE.Object3D, index: number) => {
+    this.scene.children.forEach((child: THREE.Object3D) => {
       if (child instanceof THREE.Mesh) {
         // Export the geometry
         switch (child.name) {
@@ -601,200 +596,43 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     });
   }
 
-  public createLayer3(): Promise<THREE.Mesh> {
-    return new Promise((resolve) => {
-      //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
-      const length =
-        this.editorData.boundingBox.maxX +
-        20 -
-        this.editorData.boundingBox.minX +
-        20;
-      //base should consist of bottom layer, holes for magnets, and path for track/dials
-      //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
-      //but also add textDepth
-      //plus 1 for wiggle room
-      const height = this.editorData.minWallWidth + this.editorData.textDepth;
-      //this.layer1Height = height;
-      const depth =
-        this.editorData.boundingBox.maxY +
-        20 -
-        this.editorData.boundingBox.minY +
-        20;
-      const geometry = new THREE.BoxGeometry(length, height, depth);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-      });
-      //material.setValues({ opacity: 0.5, transparent: true });
-      const layer3Base = new THREE.Mesh(geometry, material);
-      layer3Base.position.set(length / 2, -height / 2 + 5, depth / 2); //top should be at 0
-      layer3Base.updateMatrix();
-      //this.scene.add(layer3Base);
-      let layer3CSG = CSG.fromMesh(layer3Base);
-      for (const module of this.modulesList) {
-        if (module['type'] === 0) {
-          const slider = this.addSliderLayer3(
-            Number(module['data'][0]),
-            Number(module['data'][1]),
-            Number(module['data'][2]),
-            Number(module['data'][3]),
-          );
-          layer3CSG = layer3CSG.subtract(slider);
-        } else if (module['type'] === 1) {
-          const dialWindow = this.addDialWindowLayer3(
-            Number(module['data'][0]),
-            -height / 2 + 5 + 1,
-            Number(module['data'][1]),
-          );
-          layer3CSG = layer3CSG.subtract(dialWindow);
-          const knobHole = this.addDialKnobLayer3(
-            Number(module['data'][0]),
-            -height / 2 + 5 + 1,
-            Number(module['data'][1]),
-          );
-          layer3CSG = layer3CSG.subtract(knobHole);
-          //this.scene.add(dialCircle);
-        } else if (module['type'] === 2) {
-          continue;
-        } else if (module['type'] === 3) {
-          const csgObj = this.addTextLayer3(
-            module['data'][3] as unknown as string,
-          );
-          layer3CSG = layer3CSG.union(csgObj);
-        }
+  /** This would go in a separate module to be run in a web worker, but requires access to the DOM
+   *  in order to work properly. All the CSG stuff is the expensive stuff anyway, so we build the
+   *  mesh here, store it in the modulesList, then handle it in a web worker or failing that,
+   *  in the tracker module
+   */
+  public generateLayer3TextMeshes() {
+    for (const module of this.modulesList) {
+      if (module['type'] === 3) {
+        const textModule = module as TextModule;
+        const textMesh = this.generateTextMeshJSON(
+          module['data'][3] as unknown as string,
+        );
+        textModule['meshJSON'] = textMesh;
       }
-      const layer3 = CSG.toMesh(layer3CSG, layer3Base.matrix, material);
-      layer3.name = 'layer3';
-      //this.scene.add(layer3);
-      resolve(layer3);
-    });
-  }
-
-  /**Need to maintain a new slider Length and width but translate based on Layer 1's numbers */
-  public addSliderLayer3(
-    length: number,
-    rotation: number,
-    translateX: number,
-    translateY: number,
-  ) {
-    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
-    const w =
-      this.editorData.derivedVals.sliderRadius * 2 +
-      2 +
-      2 * this.editorData.partGapWidth; //extra 1 on each end
-    //window with rounded end caps - union cube and cylinders at either end
-    const rectLength = this.editorData.derivedVals.segmentLength * (length - 1);
-    const r =
-      this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
-    const height = this.editorData.minWallWidth + this.editorData.textDepth + 2;
-    const endGeometry = new THREE.CylinderGeometry(r, r, height, 32);
-    const material = new THREE.MeshStandardMaterial({ color: 0xfffff0 });
-    const tY = -height / 2 + 5 + 1;
-    let newX, newZ, mCSG;
-    if (rotation === 0) {
-      //vertical
-      newX = translateX + w / 2;
-      newZ = translateY + l / 2;
-      //newX = translateX + r + 1 + this.editorData.partGapWidth;
-      //newZ = translateY + rectLength / 2 + 1 + this.editorData.partGapWidth;
-      const firstCylZ = newZ - rectLength / 2;
-      const midGeometry = new THREE.BoxGeometry(2 * r, height, rectLength);
-      const midMesh = new THREE.Mesh(midGeometry, material);
-      midMesh.position.set(newX, tY, newZ);
-      midMesh.updateMatrix();
-      const topMesh = new THREE.Mesh(endGeometry, material);
-      topMesh.position.set(newX, tY, firstCylZ);
-      topMesh.updateMatrix();
-      const bottomMesh = new THREE.Mesh(endGeometry, material);
-      bottomMesh.position.set(newX, tY, firstCylZ + rectLength);
-      bottomMesh.updateMatrix();
-      mCSG = CSG.fromMesh(midMesh);
-      const tCSG = CSG.fromMesh(topMesh);
-      const bCSG = CSG.fromMesh(bottomMesh);
-      mCSG = mCSG.union(tCSG);
-      mCSG = mCSG.union(bCSG);
-      //sliderLayer3 = CSG.toMesh(mCSG, midMesh.matrix, material);
-    } else {
-      newX = translateX + l / 2;
-      newZ = translateY + w / 2;
-      const firstCylX = newX - rectLength / 2;
-      const midGeometry = new THREE.BoxGeometry(rectLength, height, 2 * r);
-      const midMesh = new THREE.Mesh(midGeometry, material);
-      midMesh.position.set(newX, tY, newZ);
-      midMesh.updateMatrix();
-      const leftMesh = new THREE.Mesh(endGeometry, material);
-      leftMesh.position.set(firstCylX, tY, newZ);
-      leftMesh.updateMatrix();
-      const rightMesh = new THREE.Mesh(endGeometry, material);
-      rightMesh.position.set(firstCylX + rectLength, tY, newZ);
-      rightMesh.updateMatrix();
-      mCSG = CSG.fromMesh(midMesh);
-      const rCSG = CSG.fromMesh(rightMesh);
-      const lCSG = CSG.fromMesh(leftMesh);
-      mCSG = mCSG.union(rCSG);
-      mCSG = mCSG.union(lCSG);
-      //sliderLayer3 = CSG.toMesh(mCSG, midMesh.matrix, material);
     }
-    return mCSG;
+    //console.log(this.modulesList);
+    this.tracker.updateModulesList(this.modulesList);
   }
 
-  public addDialWindowLayer3(tX: number, tY: number, tZ: number) {
-    const l = this.editorData.derivedVals.knobWidth + 3,
-      w = this.editorData.derivedVals.knobWidth + 1,
-      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
-    //hole for dial knob, window for dial numerals
-    const newR = this.editorData.derivedVals.knobWidth + l / 2;
-
-    const theta = Math.PI / 2;
-    const newXVal =
-      tX + this.editorData.derivedVals.plateWidth / 2 + newR * Math.cos(theta);
-    const newZVal =
-      tZ + this.editorData.derivedVals.plateWidth / 2 + newR * Math.sin(theta);
-    const geometry = new THREE.BoxGeometry(w, h, l);
-    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const divotBox = new THREE.Mesh(geometry, material);
-    divotBox.position.set(newXVal, tY, newZVal);
-    divotBox.updateMatrix();
-    return CSG.fromMesh(divotBox);
-  }
-
-  public addDialKnobLayer3(tX: number, tY: number, tZ: number) {
-    const r =
-        this.editorData.derivedVals.knobWidth / 2 +
-        this.editorData.partGapWidth,
-      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
-    const geometry = new THREE.CylinderGeometry(r, r, h, 32);
-    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const knobHole = new THREE.Mesh(geometry, material);
-    knobHole.position.set(
-      tX + this.editorData.derivedVals.plateWidth / 2,
-      tY,
-      tZ + this.editorData.derivedVals.plateWidth / 2,
-    );
-    knobHole.updateMatrix();
-    return CSG.fromMesh(knobHole);
-  }
-
-  public addTextLayer3(svgPathNode: string): CSG {
+  /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to
+   * work properly. All the CSG stuff is the expensive stuff anyway, so we build the mesh here then merge it
+   * in the web worker
+   */
+  public generateTextMeshJSON(svgPathNode: string): object[] {
     const layer3Height =
       this.editorData.minWallWidth + this.editorData.textDepth;
     const yTranslate = layer3Height / 2 + 5 - this.editorData.textDepth;
-    //boolean difference rectangle, union text
-    //console.log('Test 1');
     const loader = new SVGLoader();
     const data = loader.parse(svgPathNode);
     const paths = data.paths;
-    //console.log('Test 2');
-
     const shapes = [];
-
     for (let i = 0; i < paths.length; i++) {
       const path = paths[i];
 
       const shapesTemp = path.toShapes(true);
       shapes.push(...shapesTemp);
     }
-
-    // Assuming you want to extrude the shape
     const extrudeSettings = {
       steps: 2,
       depth: this.editorData.textDepth * 2,
@@ -804,18 +642,13 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       bevelOffset: 0,
       bevelSegments: 0,
     };
-
     const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.set(Math.PI / 2, 0, 0);
     mesh.position.y = yTranslate;
     mesh.updateMatrix();
-    const textCSG = CSG.fromMesh(mesh);
-    return textCSG;
-
-    // Add the mesh to your scene
-
-    //this.scene.add(mesh);
+    const meshJSON = mesh.toJSON();
+    return meshJSON;
   }
 }

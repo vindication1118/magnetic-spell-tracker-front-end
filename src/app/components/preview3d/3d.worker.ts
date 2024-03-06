@@ -17,10 +17,10 @@ addEventListener('message', ({ data }) => {
       postMessage(meshJSON);
     }
   });
-  /*myTracker
+  myTracker
     .createLayer3()
     .then((mesh) => mesh.toJSON())
     .then((meshJSON) => {
       postMessage(meshJSON);
-    });*/
+    });
 });

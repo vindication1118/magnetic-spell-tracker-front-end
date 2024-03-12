@@ -37,24 +37,16 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private frameID: number | null = null;
 
   //* Cube Properties
-
-  @Input() public rotationSpeedX: number = 0.05;
-
-  @Input() public rotationSpeedY: number = 0.01;
-
-  @Input() public size: number = 200;
-
-  @Input() public texture: string = '/assets/texture.jpg';
-
+  @Input() modulesList: TrackerModule[] = [];
+  public rotationSpeedX: number = 0.05;
+  public rotationSpeedY: number = 0.01;
+  public size: number = 200;
+  public texture: string = '/assets/texture.jpg';
   //* Stage Properties
-
-  @Input() public cameraZ: number = 8000;
-
-  @Input() public fieldOfView: number = 1;
-
-  @Input() public nearClippingPlane: number = 0.1;
-
-  @Input() public farClippingPlane: number = 20000;
+  public cameraZ: number = 8000;
+  public fieldOfView: number = 1;
+  public nearClippingPlane: number = 0.1;
+  public farClippingPlane: number = 20000;
 
   @Input() public editorData: EditorData = {
     magnetDiameter: 2,
@@ -107,7 +99,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   // SSAO pass
   private ssaoPass!: SSAOPass;
 
-  private modulesList: TrackerModule[] = [
+  private oldModulesList: TrackerModule[] = [
     {
       type: 1,
       data: [20, 20],

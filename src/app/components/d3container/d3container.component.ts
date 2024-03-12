@@ -1,4 +1,10 @@
-import { AfterViewInit, Component, OnInit } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  OnInit,
+  Output,
+  EventEmitter,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormGroup,
@@ -14,6 +20,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatButtonModule } from '@angular/material/button';
 import opentype from 'opentype.js';
+import { EditorData } from '../../interfaces/editor-data';
+import { TrackerModule } from '../../interfaces/tracker-module';
+import * as _ from 'lodash';
 
 @Component({
   selector: 'app-d3container',
@@ -32,18 +41,23 @@ import opentype from 'opentype.js';
   styleUrl: './d3container.component.scss',
 })
 export class D3containerComponent implements OnInit, AfterViewInit {
+  @Output() moduleAdded: EventEmitter<TrackerModule[]> = new EventEmitter<
+    TrackerModule[]
+  >();
   private lineColor: string = '#badbed';
   private fb!: FormBuilder;
   public printOptionsForm!: FormGroup;
+  public editorData!: EditorData;
   public settings!: object;
   public sliderRadius!: number;
   public segmentLength!: number;
   public knobWidth!: number;
   public plateWidth!: number;
+  public plateHeight!: number;
   public dialViewBoxDimensions!: number;
   public sliderWidthViewBox!: number; //should always be same regardless
   public sliderLengthViewBoxAdd!: number; //add this to length * segmentLength
-  public modulesList: object[] = [];
+  public modulesList: TrackerModule[] = [];
   public boundingBox = {
     minX: Number.MAX_SAFE_INTEGER,
     minY: Number.MAX_SAFE_INTEGER,
@@ -56,11 +70,37 @@ export class D3containerComponent implements OnInit, AfterViewInit {
   ngOnInit() {
     this.createForm();
     this.updateDerivedVars();
+    this.printOptionsForm.get('magnetDiameter')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('magnetHeight')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('partGapWidth')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('minWallWidth')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('textDepth')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('bedDimensionX')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
+    this.printOptionsForm.get('bedDimensionY')?.valueChanges.subscribe(() => {
+      this.updateDerivedVars();
+    });
   }
 
   ngAfterViewInit() {
     this.initSVGEditorCanvas();
     console.log(this.boundingBox);
+  }
+
+  private addModule(module: TrackerModule) {
+    this.modulesList.push(module);
+    this.moduleAdded.emit(this.modulesList);
   }
 
   public checkExtremes(
@@ -263,111 +303,6 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     );
   }
 
-  private addPathfinderSorcSpellSlots(tx: number, ty: number) {
-    const tXDist =
-      this.sliderRadius * 2 +
-      2 +
-      2 * this.printOptionsForm.controls['partGapWidth'].value +
-      this.printOptionsForm.controls['minWallWidth'].value;
-    this.addSlider(6, 0, tx + 10 + 0 * tXDist, ty + 100);
-    this.addSlider(5, 0, tx + 10 + 1 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 2 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 3 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 4 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 5 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 6 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 7 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 8 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(5, 0, tx + 10 + 9 * tXDist, ty + 100 + this.segmentLength);
-    this.addSlider(
-      3,
-      0,
-      tx + 10 + 10 * tXDist,
-      ty + 100 + 3 * this.segmentLength,
-    );
-    this.addText(0, tx + 60, ty + 88, 'Spell Slots', 8);
-    this.addText(0, tx + 10 + 0 * tXDist, ty + 98, 'C', 8);
-    this.addText(0, tx + 10 + 1 * tXDist, ty + 98, '1', 8);
-    this.addText(0, tx + 10 + 2 * tXDist, ty + 98, '2', 8);
-    this.addText(0, tx + 10 + 3 * tXDist, ty + 98, '3', 8);
-    this.addText(0, tx + 10 + 4 * tXDist, ty + 98, '4', 8);
-    this.addText(0, tx + 10 + 5 * tXDist, ty + 98, '5', 8);
-    this.addText(0, tx + 10 + 6 * tXDist, ty + 98, '6', 8);
-    this.addText(0, tx + 10 + 7 * tXDist, ty + 98, '7', 8);
-    this.addText(0, tx + 10 + 8 * tXDist, ty + 98, '8', 8);
-    this.addText(0, tx + 10 + 9 * tXDist, ty + 98, '9', 8);
-    this.addText(0, tx + 10 + 10 * tXDist, ty + 98, '10', 8);
-    const startingPoint = ty + 100 + this.sliderRadius + 0.4;
-    this.addText(0, tx + 5, startingPoint, '5', 4, true);
-    this.addText(
-      0,
-      tx + 5,
-      startingPoint + 1 * this.segmentLength,
-      '4',
-      4,
-      true,
-    );
-    this.addText(
-      0,
-      tx + 5,
-      startingPoint + 2 * this.segmentLength,
-      '3',
-      4,
-      true,
-    );
-    this.addText(
-      0,
-      tx + 5,
-      startingPoint + 3 * this.segmentLength,
-      '2',
-      4,
-      true,
-    );
-    this.addText(
-      0,
-      tx + 5,
-      startingPoint + 4 * this.segmentLength,
-      '1',
-      4,
-      true,
-    );
-    this.addText(
-      0,
-      tx + 5,
-      startingPoint + 5 * this.segmentLength,
-      '0',
-      4,
-      true,
-    );
-  }
-
-  private add5ESpellSlots() {
-    this.addSlider(5, 0, 10, 100);
-    this.addSlider(4, 0, 20, 100 + this.segmentLength);
-    this.addSlider(4, 0, 30, 100 + this.segmentLength);
-    this.addSlider(4, 0, 40, 100 + this.segmentLength);
-    this.addSlider(4, 0, 50, 100 + this.segmentLength);
-    this.addSlider(3, 0, 60, 100 + 2 * this.segmentLength);
-    this.addSlider(3, 0, 70, 100 + 2 * this.segmentLength);
-    this.addSlider(2, 0, 80, 100 + 3 * this.segmentLength);
-    this.addSlider(2, 0, 90, 100 + 3 * this.segmentLength);
-    this.addText(0, 60, 88, 'Spell Slots', 8);
-    this.addText(0, 10, 98, '1', 8);
-    this.addText(0, 20, 98, '2', 8);
-    this.addText(0, 30, 98, '3', 8);
-    this.addText(0, 40, 98, '4', 8);
-    this.addText(0, 50, 98, '5', 8);
-    this.addText(0, 60, 98, '6', 8);
-    this.addText(0, 70, 98, '7', 8);
-    this.addText(0, 80, 98, '8', 8);
-    this.addText(0, 90, 98, '9', 8);
-    const startingPoint = 100 + this.sliderRadius + 0.4;
-    this.addText(0, 5, startingPoint, '4', 4, true);
-    this.addText(0, 5, startingPoint + 1 * this.segmentLength, '3', 4, true);
-    this.addText(0, 5, startingPoint + 2 * this.segmentLength, '2', 4, true);
-    this.addText(0, 5, startingPoint + 3 * this.segmentLength, '1', 4, true);
-    this.addText(0, 5, startingPoint + 4 * this.segmentLength, '0', 4, true);
-  }
   //eventually pull saved file and update this value here
   private createForm() {
     this.printOptionsForm = this.fb.group({
@@ -406,7 +341,38 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     this.dialViewBoxDimensions = this.plateWidth + 4;
     this.sliderWidthViewBox = this.sliderRadius * 2 + 0.6;
     this.sliderLengthViewBoxAdd = 1.6;
+    this.plateHeight =
+      this.printOptionsForm.controls['magnetDiameter'].value +
+      this.printOptionsForm.controls['minWallWidth'].value +
+      this.printOptionsForm.controls['textDepth'].value;
     console.log(this.sliderRadius * 2 - this.knobWidth); //should be 1
+    this.setEditorData();
+  }
+
+  private setEditorData() {
+    this.editorData = {
+      magnetDiameter: this.printOptionsForm.controls['magnetDiameter'].value,
+      magnetHeight: this.printOptionsForm.controls['magnetHeight'].value,
+      partGapWidth: this.printOptionsForm.controls['partGapWidth'].value,
+      minWallWidth: this.printOptionsForm.controls['minWallWidth'].value,
+      textPrintOpt: this.printOptionsForm.controls['partGapWidth'].value, //deprecated?
+      textDepth: this.printOptionsForm.controls['textDepth'].value,
+      bedDimensionX: this.printOptionsForm.controls['bedDimensionX'].value,
+      bedDimensionY: this.printOptionsForm.controls['bedDimensionY'].value,
+      derivedVals: {
+        sliderRadius: this.sliderRadius,
+        segmentLength: this.segmentLength,
+        knobWidth: this.knobWidth,
+        plateWidth: this.plateWidth,
+        plateHeight: this.plateHeight,
+      },
+      boundingBox: {
+        minX: this.boundingBox.minX,
+        minY: this.boundingBox.minY,
+        maxX: this.boundingBox.maxX,
+        maxY: this.boundingBox.maxY,
+      },
+    };
   }
 
   // emit update - editor component will update input value for threejs component
@@ -481,9 +447,10 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       translationX + viewX,
       translationY + viewY,
     );
-    this.modulesList.push({
+    this.addModule({
       type: 0,
       data: [length, rotation, translationX, translationY],
+      editorData: _.cloneDeep(this.editorData),
     });
     //this.addTopCap(sliderID, 180, x, length * segmentLength + y - segmentLength);
     // return selection
@@ -976,9 +943,10 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       translationX + this.dialViewBoxDimensions,
       translationY + this.dialViewBoxDimensions,
     );
-    this.modulesList.push({
+    this.addModule({
       type: 1,
       data: [translationX, translationY],
+      editorData: _.cloneDeep(this.editorData),
     });
   }
 
@@ -1123,7 +1091,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         textBBox.bottom,
       );
       //console.log(textBBox);
-      this.modulesList.push({
+      this.addModule({
         type: 2,
         data: [
           rotation,
@@ -1133,6 +1101,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           textBBox.width,
           textBBox.height,
         ],
+        editorData: _.cloneDeep(this.editorData),
       });
     }
   }
@@ -1178,9 +1147,10 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           .style('fill', this.lineColor);
         const textGroupNode = textGroup.node()?.outerHTML;
         //console.log(textGroupNode);
-        this.modulesList.push({
+        this.addModule({
           type: 3,
-          data: [rotation, translationX, testHeight, textGroupNode],
+          data: [rotation, translationX, testHeight, textGroupNode!],
+          editorData: _.cloneDeep(this.editorData),
         });
       });
       this.checkExtremes(

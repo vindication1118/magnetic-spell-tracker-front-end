@@ -23,6 +23,7 @@ import opentype from 'opentype.js';
 import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule } from '../../interfaces/tracker-module';
 import * as _ from 'lodash';
+import { ModuleMenuComponent } from '../module-menu/module-menu.component';
 
 @Component({
   selector: 'app-d3container',
@@ -36,6 +37,7 @@ import * as _ from 'lodash';
     MatCardModule,
     MatExpansionModule,
     MatButtonModule,
+    ModuleMenuComponent,
   ],
   templateUrl: './d3container.component.html',
   styleUrl: './d3container.component.scss',
@@ -44,6 +46,8 @@ export class D3containerComponent implements OnInit, AfterViewInit {
   @Output() moduleAdded: EventEmitter<TrackerModule[]> = new EventEmitter<
     TrackerModule[]
   >();
+  @Output() editorDataChanged: EventEmitter<EditorData> =
+    new EventEmitter<EditorData>();
   private lineColor: string = '#badbed';
   private fb!: FormBuilder;
   public printOptionsForm!: FormGroup;
@@ -373,6 +377,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         maxY: this.boundingBox.maxY,
       },
     };
+    this.editorDataChanged.emit(this.editorData);
   }
 
   // emit update - editor component will update input value for threejs component

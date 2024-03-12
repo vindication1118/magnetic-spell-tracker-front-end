@@ -70,6 +70,7 @@ class SpellTracker {
             Number(module['data'][1]),
             Number(module['data'][2]),
             Number(module['data'][3]),
+            module.editorData,
           );
           const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
           l1BCSG = l1BCSG.subtract(trackCubeCSG);
@@ -77,6 +78,7 @@ class SpellTracker {
           const dialCircle = this.addDialCircle(
             Number(module['data'][0]),
             Number(module['data'][1]),
+            module.editorData,
           );
           const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
           l1BCSG = l1BCSG.subtract(dialCSG);
@@ -96,17 +98,16 @@ class SpellTracker {
     rotation: number,
     translateX: number,
     translateY: number,
+    moduleInfo: EditorData,
   ) {
-    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const l = length * moduleInfo.derivedVals.segmentLength + 2; //extra 1 on each end
     const w =
-      this.editorData.derivedVals.sliderRadius * 2 +
-      2 +
-      2 * this.editorData.partGapWidth; //extra 1 on each end
+      moduleInfo.derivedVals.sliderRadius * 2 + 2 + 2 * moduleInfo.partGapWidth; //extra 1 on each end
     const h =
-      this.editorData.partGapWidth +
-      this.editorData.minWallWidth +
-      this.editorData.textDepth +
-      this.editorData.magnetHeight +
+      moduleInfo.partGapWidth +
+      moduleInfo.minWallWidth +
+      moduleInfo.textDepth +
+      moduleInfo.magnetHeight +
       1; // want this sticking out of surface of base cube by 1
     let tL, tD, newX, newZ;
     const cylArr = [],
@@ -115,7 +116,7 @@ class SpellTracker {
       magYTranslate =
         1 +
         bottomOfTrackCube -
-        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
+        (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
     if (rotation === 0) {
       //vertical
       tL = w;
@@ -123,13 +124,14 @@ class SpellTracker {
       newX = translateX + w / 2;
       newZ = translateY + l / 2;
       const firstCylZ =
-        1 + translateY + this.editorData.derivedVals.segmentLength / 2;
+        1 + translateY + moduleInfo.derivedVals.segmentLength / 2;
       for (let i = 0; i < length; i++) {
         cylArr.push(
           this.addMagCyl(
             newX,
             magYTranslate,
-            firstCylZ + i * this.editorData.derivedVals.segmentLength,
+            firstCylZ + i * moduleInfo.derivedVals.segmentLength,
+            moduleInfo,
           ),
         );
       }
@@ -137,15 +139,16 @@ class SpellTracker {
       tL = l;
       tD = w;
       const firstCylX =
-        1 + translateX + this.editorData.derivedVals.segmentLength / 2;
+        1 + translateX + moduleInfo.derivedVals.segmentLength / 2;
       newX = translateX + l / 2;
       newZ = translateY + w / 2;
       for (let i = 0; i < length; i++) {
         cylArr.push(
           this.addMagCyl(
-            firstCylX + i * this.editorData.derivedVals.segmentLength,
+            firstCylX + i * moduleInfo.derivedVals.segmentLength,
             magYTranslate,
             newZ,
+            moduleInfo,
           ),
         );
       }
@@ -171,9 +174,9 @@ class SpellTracker {
     return trackMesh;
   }
 
-  public addMagCyl(tX: number, tY: number, tZ: number) {
-    const r = this.editorData.magnetDiameter / 2 + this.editorData.partGapWidth;
-    const h = this.editorData.magnetHeight + this.editorData.partGapWidth + 1;
+  public addMagCyl(tX: number, tY: number, tZ: number, moduleInfo: EditorData) {
+    const r = moduleInfo.magnetDiameter / 2 + moduleInfo.partGapWidth;
+    const h = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
     const radialSegments = 32; //maybe overkill
     const geometry = new THREE.CylinderGeometry(r, r, h, radialSegments);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
@@ -184,14 +187,17 @@ class SpellTracker {
     return cylinder;
   }
 
-  public addDialCircle(translationX: number, translationY: number) {
-    const r =
-      this.editorData.derivedVals.plateWidth / 2 + this.editorData.partGapWidth;
+  public addDialCircle(
+    translationX: number,
+    translationY: number,
+    moduleInfo: EditorData,
+  ) {
+    const r = moduleInfo.derivedVals.plateWidth / 2 + moduleInfo.partGapWidth;
     const h =
-      this.editorData.partGapWidth +
-      this.editorData.minWallWidth +
-      this.editorData.textDepth +
-      this.editorData.magnetHeight +
+      moduleInfo.partGapWidth +
+      moduleInfo.minWallWidth +
+      moduleInfo.textDepth +
+      moduleInfo.magnetHeight +
       1;
     const newX = translationX + r;
     const newZ = translationY + r;
@@ -199,7 +205,7 @@ class SpellTracker {
       magYTranslate =
         1 +
         bottomOfDialCircle -
-        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
+        (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
     //material.setValues({ opacity: 0.5, transparent: true });
@@ -210,13 +216,13 @@ class SpellTracker {
       newX,
       magYTranslate,
       newZ +
-        (this.editorData.derivedVals.plateWidth / 2 -
-          (1.5 + this.editorData.magnetDiameter / 2)),
+        (moduleInfo.derivedVals.plateWidth / 2 -
+          (1.5 + moduleInfo.magnetDiameter / 2)),
+      moduleInfo,
     );
     const knobR =
-      this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
-    const knobH =
-      this.editorData.magnetHeight + this.editorData.partGapWidth + 1;
+      moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
+    const knobH = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
     const knobAlignCyl = new THREE.Mesh(
       new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
       material,
@@ -243,9 +249,10 @@ class SpellTracker {
     inputText: string,
     width: number,
     height: number,
+    moduleInfo: EditorData,
     translationY?: number,
   ): { text: CSG; divot: CSG } {
-    const h = this.editorData.textDepth;
+    const h = moduleInfo.textDepth;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
     const geometry = new TextGeometry(inputText, {
@@ -313,9 +320,10 @@ class SpellTracker {
     inputText: string,
     width: number,
     height: number,
+    moduleInfo: EditorData,
     translationY?: number,
   ): THREE.Mesh {
-    const h = this.editorData.textDepth;
+    const h = moduleInfo.textDepth;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
     const geometry = new TextGeometry(inputText, {
@@ -420,11 +428,12 @@ class SpellTracker {
             Number(module['data'][1]),
             Number(module['data'][2]),
             Number(module['data'][3]),
+            module.editorData,
           );
           meshArr.push(slider);
         } else if (module['type'] === 1) {
           if (typeof genericDialLayer2 === 'undefined') {
-            genericDialLayer2 = this.addGenericDialLayer2();
+            genericDialLayer2 = this.addGenericDialLayer2(module.editorData);
           }
           const dialCircle = genericDialLayer2.clone();
           dialCircle.position.setComponent(0, Number(module['data'][0]) + r);
@@ -449,40 +458,39 @@ class SpellTracker {
     rotation: number,
     translateX: number,
     translateY: number,
+    moduleInfo: EditorData,
   ): THREE.Mesh {
-    const l = this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
-    const w = this.editorData.derivedVals.sliderRadius * 2 + 2; //same as layer 1 but no part gap
+    const l = moduleInfo.derivedVals.segmentLength + 2; //extra 1 on each end
+    const w = moduleInfo.derivedVals.sliderRadius * 2 + 2; //same as layer 1 but no part gap
     const h =
-      this.editorData.minWallWidth +
-      this.editorData.textDepth +
-      this.editorData.magnetHeight; // same as layer 1 but no part gap
+      moduleInfo.minWallWidth + moduleInfo.textDepth + moduleInfo.magnetHeight; // same as layer 1 but no part gap
     let sL, sD, newX, newZ;
     //bottom of track cube minus height plus 3
     const bottomOfSliderCube = -h + 3,
       magYTranslate =
         -1 +
         bottomOfSliderCube +
-        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2; //stick out bottom
+        (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2; //stick out bottom
     if (rotation === 0) {
       //vertical
       sL = w;
       sD = l;
-      newX = translateX + w / 2 + this.editorData.partGapWidth / 2;
+      newX = translateX + w / 2 + moduleInfo.partGapWidth / 2;
       newZ = translateY + l / 2;
     } else {
       sL = l;
       sD = w;
       newX = translateX + l / 2;
-      newZ = translateY + w / 2 + this.editorData.partGapWidth / 2;
+      newZ = translateY + w / 2 + moduleInfo.partGapWidth / 2;
     }
-    const knobR = this.editorData.derivedVals.knobWidth / 2;
+    const knobR = moduleInfo.derivedVals.knobWidth / 2;
     const geometry = new THREE.BoxGeometry(sL, h, sD);
     const material = new THREE.MeshStandardMaterial({ color: 0xffff00 });
     //material.setValues({ opacity: 0.5, transparent: true });
     const sliderCube = new THREE.Mesh(geometry, material);
     sliderCube.position.set(newX, -h / 2 + 3, newZ);
     sliderCube.updateMatrix();
-    const magCyl = this.addMagCyl(newX, magYTranslate, newZ);
+    const magCyl = this.addMagCyl(newX, magYTranslate, newZ, moduleInfo);
     //this.scene.add(magCyl);
     let sliderCSG = CSG.fromMesh(sliderCube, 0);
     const magCylCSG = CSG.fromMesh(magCyl, 1);
@@ -499,24 +507,26 @@ class SpellTracker {
     completeSlider.name = 'sliderLayer2';
     return completeSlider;
   }
-  public addGenericDialLayer2() {
-    const myGenericDialLayer2 = this.addDialLayer2(0, 0);
+  public addGenericDialLayer2(moduleInfo: EditorData) {
+    const myGenericDialLayer2 = this.addDialLayer2(0, 0, moduleInfo);
     return myGenericDialLayer2;
   }
-  public addDialLayer2(translationX: number, translationY: number): THREE.Mesh {
+  public addDialLayer2(
+    translationX: number,
+    translationY: number,
+    moduleInfo: EditorData,
+  ): THREE.Mesh {
     //small tall cylinder, large flat cylinder, boolean difference magnet cylinders, engrave text
-    const r = this.editorData.derivedVals.plateWidth / 2; //same as before but no part gap
+    const r = moduleInfo.derivedVals.plateWidth / 2; //same as before but no part gap
     const h =
-      this.editorData.minWallWidth +
-      this.editorData.magnetHeight +
-      this.editorData.textDepth; //same as before but no part gap and no extra + 1 to stick out of surface
+      moduleInfo.minWallWidth + moduleInfo.magnetHeight + moduleInfo.textDepth; //same as before but no part gap and no extra + 1 to stick out of surface
     const newX = translationX + r;
     const newZ = translationY + r;
     const bottomOfDialCircle = -h + 3,
       magYTranslate =
         -1 +
         bottomOfDialCircle +
-        (this.editorData.magnetHeight + this.editorData.partGapWidth + 1) / 2;
+        (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
     //material.setValues({ opacity: 0.5, transparent: true });
@@ -529,20 +539,22 @@ class SpellTracker {
       const theta = angleDiffRads * i + Math.PI / 2 + angleDiffRads;
       const magXVal =
         newX +
-        (this.editorData.derivedVals.plateWidth / 2 -
-          (1.5 + this.editorData.magnetDiameter / 2)) *
+        (moduleInfo.derivedVals.plateWidth / 2 -
+          (1.5 + moduleInfo.magnetDiameter / 2)) *
           Math.cos(theta); //x and y are circle center, want to set mag edge minWallWidth inside dial edge
       const magZVal =
         newZ +
-        (this.editorData.derivedVals.plateWidth / 2 -
-          (1.5 + this.editorData.magnetDiameter / 2)) *
+        (moduleInfo.derivedVals.plateWidth / 2 -
+          (1.5 + moduleInfo.magnetDiameter / 2)) *
           Math.sin(theta); //x and y are circle center
-      magCylArr.push(this.addMagCyl(magXVal, magYTranslate, magZVal));
+      magCylArr.push(
+        this.addMagCyl(magXVal, magYTranslate, magZVal, moduleInfo),
+      );
     }
 
     //this.scene.add(magCyl);
-    const knobR = this.editorData.derivedVals.knobWidth / 2;
-    const knobH = this.editorData.magnetHeight + h + 5;
+    const knobR = moduleInfo.derivedVals.knobWidth / 2;
+    const knobH = moduleInfo.magnetHeight + h + 5;
     const knobAlignCyl = new THREE.Mesh(
       new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
       material,
@@ -559,7 +571,12 @@ class SpellTracker {
     dialCSG = dialCSG.union(knobAlignCSG);
 
     //TODO: Add in text to number dial once I've had time to deal with it
-    const dialText = this.addDialDigits(newX, newZ, bottomOfDialCircle + h);
+    const dialText = this.addDialDigits(
+      newX,
+      newZ,
+      bottomOfDialCircle + h,
+      moduleInfo,
+    );
     for (const divot of dialText.divots) {
       const divotCSG = CSG.fromMesh(divot);
       dialCSG = dialCSG.subtract(divotCSG);
@@ -577,15 +594,16 @@ class SpellTracker {
     dialCenterX: number,
     dialCenterZ: number,
     yTranslate: number,
+    moduleInfo: EditorData,
   ) {
-    const l = this.editorData.derivedVals.knobWidth + 3,
-      w = this.editorData.derivedVals.knobWidth + 1,
-      h = this.editorData.textDepth + 1,
-      newR = this.editorData.derivedVals.knobWidth + l / 2,
+    const l = moduleInfo.derivedVals.knobWidth + 3,
+      w = moduleInfo.derivedVals.knobWidth + 1,
+      h = moduleInfo.textDepth + 1,
+      newR = moduleInfo.derivedVals.knobWidth + l / 2,
       angleDiffRads = (2 * Math.PI) / 10,
       textRadius =
-        this.editorData.derivedVals.plateWidth / 2 -
-        (3 * this.editorData.derivedVals.knobWidth) / 4,
+        moduleInfo.derivedVals.plateWidth / 2 -
+        (3 * moduleInfo.derivedVals.knobWidth) / 4,
       angleDiffDeg = 360 / 10;
     const textObj = {
       divots: new Array<THREE.Mesh>(),
@@ -601,7 +619,7 @@ class SpellTracker {
       const divotBox = new THREE.Mesh(geometry, material);
       divotBox.position.set(
         newXVal,
-        yTranslate + h / 2 - this.editorData.textDepth,
+        yTranslate + h / 2 - moduleInfo.textDepth,
         newZVal,
       );
       divotBox.rotation.y = -(theta - Math.PI / 2);
@@ -623,7 +641,8 @@ class SpellTracker {
         text,
         newWidth,
         l / 2,
-        yTranslate - this.editorData.textDepth / 2,
+        moduleInfo,
+        yTranslate - moduleInfo.textDepth / 2,
       );
       textObj.digits.push(textMesh);
     }
@@ -666,6 +685,7 @@ class SpellTracker {
             Number(module['data'][1]),
             Number(module['data'][2]),
             Number(module['data'][3]),
+            module.editorData,
           );
           layer3CSG = layer3CSG.subtract(slider);
         } else if (module['type'] === 1) {
@@ -673,12 +693,14 @@ class SpellTracker {
             Number(module['data'][0]),
             -height / 2 + 5 + 1,
             Number(module['data'][1]),
+            module.editorData,
           );
           layer3CSG = layer3CSG.subtract(dialWindow);
           const knobHole = this.addDialKnobLayer3(
             Number(module['data'][0]),
             -height / 2 + 5 + 1,
             Number(module['data'][1]),
+            module.editorData,
           );
           layer3CSG = layer3CSG.subtract(knobHole);
           //this.scene.add(dialCircle);
@@ -690,6 +712,7 @@ class SpellTracker {
             module['data'][3] + '',
             Number(module['data'][4]),
             Number(module['data'][5]),
+            module.editorData,
             5,
           );
           layer3CSG = layer3CSG.subtract(csgObj.divot);
@@ -712,17 +735,15 @@ class SpellTracker {
     rotation: number,
     translateX: number,
     translateY: number,
+    moduleInfo: EditorData,
   ) {
-    const l = length * this.editorData.derivedVals.segmentLength + 2; //extra 1 on each end
+    const l = length * moduleInfo.derivedVals.segmentLength + 2; //extra 1 on each end
     const w =
-      this.editorData.derivedVals.sliderRadius * 2 +
-      2 +
-      2 * this.editorData.partGapWidth; //extra 1 on each end
+      moduleInfo.derivedVals.sliderRadius * 2 + 2 + 2 * moduleInfo.partGapWidth; //extra 1 on each end
     //window with rounded end caps - union cube and cylinders at either end
-    const rectLength = this.editorData.derivedVals.segmentLength * (length - 1);
-    const r =
-      this.editorData.derivedVals.knobWidth / 2 + this.editorData.partGapWidth;
-    const height = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+    const rectLength = moduleInfo.derivedVals.segmentLength * (length - 1);
+    const r = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
+    const height = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
     const endGeometry = new THREE.CylinderGeometry(r, r, height, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xfffff0 });
     const tY = -height / 2 + 5 + 1;
@@ -731,8 +752,8 @@ class SpellTracker {
       //vertical
       newX = translateX + w / 2;
       newZ = translateY + l / 2;
-      //newX = translateX + r + 1 + this.editorData.partGapWidth;
-      //newZ = translateY + rectLength / 2 + 1 + this.editorData.partGapWidth;
+      //newX = translateX + r + 1 + moduleInfo.partGapWidth;
+      //newZ = translateY + rectLength / 2 + 1 + moduleInfo.partGapWidth;
       const firstCylZ = newZ - rectLength / 2;
       const midGeometry = new THREE.BoxGeometry(2 * r, height, rectLength);
       const midMesh = new THREE.Mesh(midGeometry, material);
@@ -774,18 +795,23 @@ class SpellTracker {
     return mCSG;
   }
 
-  public addDialWindowLayer3(tX: number, tY: number, tZ: number) {
-    const l = this.editorData.derivedVals.knobWidth + 3,
-      w = this.editorData.derivedVals.knobWidth + 1,
-      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+  public addDialWindowLayer3(
+    tX: number,
+    tY: number,
+    tZ: number,
+    moduleInfo: EditorData,
+  ) {
+    const l = moduleInfo.derivedVals.knobWidth + 3,
+      w = moduleInfo.derivedVals.knobWidth + 1,
+      h = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
     //hole for dial knob, window for dial numerals
-    const newR = this.editorData.derivedVals.knobWidth + l / 2;
+    const newR = moduleInfo.derivedVals.knobWidth + l / 2;
 
     const theta = Math.PI / 2;
     const newXVal =
-      tX + this.editorData.derivedVals.plateWidth / 2 + newR * Math.cos(theta);
+      tX + moduleInfo.derivedVals.plateWidth / 2 + newR * Math.cos(theta);
     const newZVal =
-      tZ + this.editorData.derivedVals.plateWidth / 2 + newR * Math.sin(theta);
+      tZ + moduleInfo.derivedVals.plateWidth / 2 + newR * Math.sin(theta);
     const geometry = new THREE.BoxGeometry(w, h, l);
     const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
     const divotBox = new THREE.Mesh(geometry, material);
@@ -794,18 +820,21 @@ class SpellTracker {
     return CSG.fromMesh(divotBox);
   }
 
-  public addDialKnobLayer3(tX: number, tY: number, tZ: number) {
-    const r =
-        this.editorData.derivedVals.knobWidth / 2 +
-        this.editorData.partGapWidth,
-      h = this.editorData.minWallWidth + this.editorData.textDepth + 2;
+  public addDialKnobLayer3(
+    tX: number,
+    tY: number,
+    tZ: number,
+    moduleInfo: EditorData,
+  ) {
+    const r = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth,
+      h = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
     const geometry = new THREE.CylinderGeometry(r, r, h, 32);
     const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
     const knobHole = new THREE.Mesh(geometry, material);
     knobHole.position.set(
-      tX + this.editorData.derivedVals.plateWidth / 2,
+      tX + moduleInfo.derivedVals.plateWidth / 2,
       tY,
-      tZ + this.editorData.derivedVals.plateWidth / 2,
+      tZ + moduleInfo.derivedVals.plateWidth / 2,
     );
     knobHole.updateMatrix();
     return CSG.fromMesh(knobHole);

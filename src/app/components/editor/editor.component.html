@@ -1,8 +1,12 @@
-<app-d3container (moduleAdded)="hidePreview($event)"></app-d3container>
+<app-d3container
+  (moduleAdded)="hidePreview($event)"
+  (editorDataChanged)="updateEditorData($event)"
+></app-d3container>
 <button mat-button *ngIf="!previewVisible" (click)="showPreview()">
   Generate 3D Model
 </button>
 <app-preview3d
   [modulesList]="trackerModuleList"
+  [editorData]="editorData"
   *ngIf="previewVisible"
 ></app-preview3d>

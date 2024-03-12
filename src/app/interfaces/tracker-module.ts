@@ -2,7 +2,7 @@ import { EditorData } from './editor-data';
 export interface TrackerModule {
   type: number;
   data: (string | number)[];
-  editorData?: EditorData;
+  editorData: EditorData;
 }
 
 export interface TextModule extends TrackerModule {

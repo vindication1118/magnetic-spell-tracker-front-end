@@ -5,8 +5,10 @@
 <button mat-button *ngIf="!previewVisible" (click)="showPreview()">
   Generate 3D Model
 </button>
-<app-preview3d
-  [modulesList]="trackerModuleList"
-  [editorData]="editorData"
-  *ngIf="previewVisible"
-></app-preview3d>
+@if (previewVisible) {
+  <app-preview3d
+    [modulesList]="trackerModuleList"
+    [editorData]="editorData"
+    *ngIf="previewVisible"
+  ></app-preview3d>
+}

@@ -4,8 +4,12 @@ import {
   OnInit,
   Output,
   EventEmitter,
+  ViewChild,
+  ElementRef,
+  PLATFORM_ID,
+  inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import {
   FormGroup,
   FormBuilder,
@@ -43,6 +47,9 @@ import { ModuleMenuComponent } from '../module-menu/module-menu.component';
   styleUrl: './d3container.component.scss',
 })
 export class D3containerComponent implements OnInit, AfterViewInit {
+  @ViewChild('svgContainer')
+  private svgContainer!: ElementRef;
+  private platformId: object;
   @Output() moduleAdded: EventEmitter<TrackerModule[]> = new EventEmitter<
     TrackerModule[]
   >();
@@ -70,9 +77,13 @@ export class D3containerComponent implements OnInit, AfterViewInit {
   };
   constructor() {
     this.fb = new FormBuilder();
+    this.platformId = inject(PLATFORM_ID);
   }
   ngOnInit() {
     this.createForm();
+  }
+
+  ngAfterViewInit() {
     this.updateDerivedVars();
     this.printOptionsForm.get('magnetDiameter')?.valueChanges.subscribe(() => {
       this.updateDerivedVars();
@@ -95,11 +106,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     this.printOptionsForm.get('bedDimensionY')?.valueChanges.subscribe(() => {
       this.updateDerivedVars();
     });
-  }
-
-  ngAfterViewInit() {
-    this.initSVGEditorCanvas();
-    console.log(this.boundingBox);
+    if (isPlatformBrowser(this.platformId)) {
+      // add this condition to check if you are in the browser before rending the chart
+      this.initSVGEditorCanvas();
+      console.log(this.boundingBox);
+    }
   }
 
   private addModule(module: TrackerModule) {
@@ -165,7 +176,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     // TODO: once backend exists, check if new, if not load and append
     //xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
     const svgGroup = d3
-      .select('#svgContainer')
+      .select(this.svgContainer.nativeElement)
       .append('svg')
       .attr('xmlns', 'http://www.w3.org/2000/svg')
       .attr('xmlns:xlink', 'http://www.w3.org/1999/xlink')

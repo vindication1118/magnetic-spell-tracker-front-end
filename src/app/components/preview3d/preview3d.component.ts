@@ -37,7 +37,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private frameID: number | null = null;
 
   //* Cube Properties
-  @Input() modulesList: TrackerModule[] = [];
+  @Input() modulesList!: TrackerModule[];
   public rotationSpeedX: number = 0.05;
   public rotationSpeedY: number = 0.01;
   public size: number = 200;
@@ -46,7 +46,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   public cameraZ: number = 8000;
   public fieldOfView: number = 1;
   public nearClippingPlane: number = 0.1;
-  public farClippingPlane: number = 20000;
+  public farClippingPlane: number = 80000;
 
   @Input() public editorData: EditorData = {
     magnetDiameter: 2,
@@ -99,7 +99,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   // SSAO pass
   private ssaoPass!: SSAOPass;
 
-  constructor(private ngZone: NgZone) {}
+  constructor(private ngZone: NgZone) { }
 
   /**
    * Create the scene
@@ -117,6 +117,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.scene.add(this.lightDirected);
     const targetObj = new THREE.Object3D();
     const bbox = this.editorData.boundingBox;
+    console.log(bbox);
     targetObj.position.set(
       (1 * (bbox.maxX - bbox.minX)) / 2,
       0,
@@ -166,6 +167,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         type: 'module',
       });
       worker.onmessage = ({ data }) => {
+        console.log("Adding new object");
         this.scene.add(this.objectLoader.parse(data));
       };
       worker.postMessage({
@@ -174,6 +176,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       });
     } else {
       // Web workers are not supported in this environment.
+      console.log("Web workers not allowed!");
       this.tracker.addBaseLayer1().then((layer1) => {
         this.scene.add(layer1);
       });
@@ -204,7 +207,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
       logarithmicDepthBuffer: true,
-      powerPreference: 'low-power',
     });
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
@@ -232,16 +234,18 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         component.controls.update();
         component.updateLighting(component.lightDirected, component.camera);
         component.renderer.render(component.scene, component.camera);
+        //console.log(component.camera.position);
       })();
     });
   }
 
   ngOnInit(): void {
     window.addEventListener('resize', () => this.onWindowResize());
-    this.tracker = new SpellTracker(this.editorData, this.modulesList);
+
   }
 
   ngAfterViewInit() {
+    this.tracker = new SpellTracker(this.editorData, this.modulesList);
     this.createScene();
     this.startRenderingLoop();
   }
@@ -348,6 +352,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
         const textModule = module as TextModule;
+        console.log(textModule.data);
         const textMesh = this.generateTextMeshJSON(
           module['data'][3] as unknown as string,
           module as TextModule,

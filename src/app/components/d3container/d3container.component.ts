@@ -26,7 +26,7 @@ import { MatButtonModule } from '@angular/material/button';
 import opentype from 'opentype.js';
 import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule } from '../../interfaces/tracker-module';
-import * as _ from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { ModuleMenuComponent } from '../module-menu/module-menu.component';
 
 @Component({
@@ -136,6 +136,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     if (this.boundingBox.maxY < maxYIn) {
       this.boundingBox.maxY = maxYIn;
     }
+    this.setEditorData();
   }
 
   public parseTransform(transformString: string) {
@@ -394,12 +395,12 @@ export class D3containerComponent implements OnInit, AfterViewInit {
   // emit update - editor component will update input value for threejs component
   // maybe set an acceptable range between 0 and 1 mm then on geometry recalc
   // mostly keep it the same with just bigger boolean cylinders
-  public updatePartGapWidth() {}
+  public updatePartGapWidth() { }
   // recalculate everything in svg, enforce collision prevention top
   // to bottom, left to right then emit
-  public updateMagnetDiameter() {}
+  public updateMagnetDiameter() { }
   //just emit
-  public updateMagnetHeight() {}
+  public updateMagnetHeight() { }
 
   public addSlider(
     length: number,
@@ -463,10 +464,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       translationX + viewX,
       translationY + viewY,
     );
+    const newData = cloneDeep(this.editorData);
     this.addModule({
       type: 0,
       data: [length, rotation, translationX, translationY],
-      editorData: _.cloneDeep(this.editorData),
+      editorData: newData,
     });
     //this.addTopCap(sliderID, 180, x, length * segmentLength + y - segmentLength);
     // return selection
@@ -959,10 +961,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       translationX + this.dialViewBoxDimensions,
       translationY + this.dialViewBoxDimensions,
     );
+    const newData = cloneDeep(this.editorData);
     this.addModule({
       type: 1,
       data: [translationX, translationY],
-      editorData: _.cloneDeep(this.editorData),
+      editorData: newData,
     });
   }
 
@@ -1107,6 +1110,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         textBBox.bottom,
       );
       //console.log(textBBox);
+      const newData = cloneDeep(this.editorData);
       this.addModule({
         type: 2,
         data: [
@@ -1117,7 +1121,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           textBBox.width,
           textBBox.height,
         ],
-        editorData: _.cloneDeep(this.editorData),
+        editorData: newData,
       });
     }
   }
@@ -1163,10 +1167,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           .style('fill', this.lineColor);
         const textGroupNode = textGroup.node()?.outerHTML;
         //console.log(textGroupNode);
+        const newData = cloneDeep(this.editorData);
         this.addModule({
           type: 3,
           data: [rotation, translationX, testHeight, textGroupNode!],
-          editorData: _.cloneDeep(this.editorData),
+          editorData: newData,
         });
       });
       this.checkExtremes(

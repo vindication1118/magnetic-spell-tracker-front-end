@@ -28,6 +28,7 @@ import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule } from '../../interfaces/tracker-module';
 import { cloneDeep } from 'lodash-es';
 import { ModuleMenuComponent } from '../module-menu/module-menu.component';
+import { PathPosition } from '../../interfaces/path-position';
 
 @Component({
   selector: 'app-d3container',
@@ -109,7 +110,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     if (isPlatformBrowser(this.platformId)) {
       // add this condition to check if you are in the browser before rending the chart
       this.initSVGEditorCanvas();
-      console.log(this.boundingBox);
+      //console.log(this.boundingBox);
     }
   }
 
@@ -233,7 +234,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         .style('stroke', 'white')
         .style('stroke-width', strokeWidth);
     }
-    console.log(this.segmentLength);
+    //console.log(this.segmentLength);
 
     this.addNumberDialInstance(20, 20);
     this.addNumberDialInstance(60, 20);
@@ -252,12 +253,12 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     this.proceduralPathfinder2eSpellSlots(10, 90);
     //this.proceduralDND5eSpellSlots(50, 150);
 
-    const res = this.parseTransform(`rotate(-10 50 100)
+    /*const res = this.parseTransform(`rotate(-10 50 100)
     translate(-36 45.5)
     skewX(40)
-    scale(1 0.5)`);
-    console.log(res);
-    console.log(this.modulesList);
+    scale(1 0.5)`); */
+    //console.log(res);
+    //console.log(this.modulesList);
   }
 
   private proceduralSliderGrid(
@@ -361,7 +362,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       this.printOptionsForm.controls['magnetDiameter'].value +
       this.printOptionsForm.controls['minWallWidth'].value +
       this.printOptionsForm.controls['textDepth'].value;
-    console.log(this.sliderRadius * 2 - this.knobWidth); //should be 1
+    //console.log(this.sliderRadius * 2 - this.knobWidth); //should be 1
     this.setEditorData();
   }
 
@@ -395,12 +396,12 @@ export class D3containerComponent implements OnInit, AfterViewInit {
   // emit update - editor component will update input value for threejs component
   // maybe set an acceptable range between 0 and 1 mm then on geometry recalc
   // mostly keep it the same with just bigger boolean cylinders
-  public updatePartGapWidth() { }
+  public updatePartGapWidth() {}
   // recalculate everything in svg, enforce collision prevention top
   // to bottom, left to right then emit
-  public updateMagnetDiameter() { }
+  public updateMagnetDiameter() {}
   //just emit
-  public updateMagnetHeight() { }
+  public updateMagnetHeight() {}
 
   public addSlider(
     length: number,
@@ -1157,7 +1158,8 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           fontSize,
         );
         const svgPath = path.toPathData(5);
-
+        console.log(svgPath);
+        this.addExtraPoints(svgPath);
         const textGroup = d3
           .select('#svgContainer svg')
           .append('path')
@@ -1170,7 +1172,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         const newData = cloneDeep(this.editorData);
         this.addModule({
           type: 3,
-          data: [rotation, translationX, testHeight, textGroupNode!],
+          data: [rotation, translationX, testHeight, textGroupNode!, inputText],
           editorData: newData,
         });
       });
@@ -1181,5 +1183,109 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         bbox.y + bbox.height,
       );
     });
+  }
+
+  public addExtraPoints(pathData: string) {
+    const commands = pathData.match(/[a-df-z][^a-df-z]*/gi);
+    const positions = this.getPositionsFromCommands(commands);
+    console.log(commands?.length + ' ' + positions.length);
+    if (commands !== null) {
+      for (let i = 0; i < commands.length; i++) {
+        const type = commands[i][0];
+        const args = commands[i]
+          .slice(1)
+          .trim()
+          .split(/[\s,]+/)
+          .map(Number);
+        if (type === 'L') {
+          const prevPosition = positions[i - 1];
+          const currentPos = args;
+          console.log(prevPosition);
+          console.log(currentPos);
+        }
+      }
+    }
+  }
+
+  public getPositionsFromCommands(commands: RegExpMatchArray | null) {
+    let x = 0,
+      y = 0,
+      firstPosition = { x: 0, y: 0 }; // Starting position of the pen
+    const positions: PathPosition[] = [];
+    if (commands !== null) {
+      commands.forEach((command) => {
+        const type = command[0];
+        const args = command
+          .slice(1)
+          .trim()
+          .split(/[\s,]+/)
+          .map(Number);
+
+        switch (type) {
+          case 'M': // Move to absolute
+            [x, y] = args;
+            positions.push({ x, y });
+            break;
+          case 'm': // Move to relative
+            x += args[0];
+            y += args[1];
+            positions.push({ x, y });
+            break;
+          case 'L': // Line to absolute
+            [x, y] = args;
+            positions.push({ x, y });
+            break;
+          case 'l': // Line to relative
+            x += args[0];
+            y += args[1];
+            positions.push({ x, y });
+            break;
+          case 'H': // Horizontal line to absolute
+            x = args[0];
+            positions.push({ x, y });
+            break;
+          case 'h': // Horizontal line to relative
+            x += args[0];
+            positions.push({ x, y });
+            break;
+          case 'V': // Vertical line to absolute
+            y = args[0];
+            positions.push({ x, y });
+            break;
+          case 'v': // Vertical line to relative
+            y += args[0];
+            positions.push({ x, y });
+            break;
+          case 'Q': // Quadratic Bézier curve to absolute
+            {
+              const [cx, cy, x2, y2] = args;
+              x = x2;
+              y = y2;
+              positions.push({ x, y, cx, cy });
+            }
+            break;
+          case 'q': // Quadratic Bézier curve to relative
+            {
+              const [dx, dy, dx2, dy2] = args;
+              const cx = x + dx;
+              const cy = y + dy;
+              x += dx2;
+              y += dy2;
+              positions.push({ x, y, cx, cy });
+            }
+            break;
+          case 'Z':
+          case 'z': // Close path
+            firstPosition = positions[0];
+            x = firstPosition.x;
+            y = firstPosition.y;
+            positions.push({ x, y });
+            break;
+          // Handle other commands if necessary
+        }
+      });
+    }
+
+    return positions;
   }
 }

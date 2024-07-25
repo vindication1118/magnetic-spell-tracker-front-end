@@ -26,7 +26,7 @@ export class EditorComponent {
   public hidePreview(e: TrackerModule[]) {
     this.previewVisible = false;
     this.trackerModuleList = e;
-    console.log('something changed, hiding preview');
+    //console.log('something changed, hiding preview');
   }
 
   public showPreview() {
@@ -35,7 +35,7 @@ export class EditorComponent {
 
   public updateEditorData(e: EditorData) {
     this.editorData = e;
-    console.log('something changed in editor settings!');
-    console.log(e);
+    //console.log('something changed in editor settings!');
+    //console.log(e);
   }
 }

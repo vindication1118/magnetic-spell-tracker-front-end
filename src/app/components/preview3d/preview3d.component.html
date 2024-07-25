@@ -1,3 +1,17 @@
-<button mat-button (click)="outputSTL()">Download STL</button>
-<canvas #canvas id="canvas" style="height: 80%; width: 80%"></canvas>
-<div id="dummySVGContainer"></div>
+<div class="container">
+  <div class="row">
+    <button mat-button (click)="outputSTL()">Download STL</button>
+  </div>
+  <div class="row">
+    <canvas #canvas id="canvas" style="height: 40%; width: 80%"></canvas>
+  </div>
+  <div class="row">
+    <canvas #canvas id="marching" style="height: 40%; width: 80%"></canvas>
+  </div>
+  <div class="row">
+    <div id="svgContainer" #svgContainer></div>
+  </div>
+  <div class="row">
+    <div id="dummySVGContainer"></div>
+  </div>
+</div>

@@ -4,88 +4,23 @@ import * as THREE from 'three';
 import { EditorData } from '../interfaces/editor-data';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
-//import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
+import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
+import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 // import { MarchingCubes, edgeTable, triTable } from 'three/examples/jsm/objects/MarchingCubes';
 import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.json';
 import { ElementRef } from '@angular/core';
+import * as deserialize from '@jscad/stl-deserializer';
+import * as serialize from '@jscad/stl-serializer';
+import { booleans } from '@jscad/modeling';
+import { Geom3 } from '@jscad/modeling/src/geometries/types';
 
 class SpellTracker {
   public editorData!: EditorData;
   public layer1Height!: number;
   public modulesList!: TrackerModule[];
   private objectLoader = new THREE.ObjectLoader();
-  // Vertex shader
-  private vsSource = `
-      void main() {
-        gl_Position = vec4(position, 1.0);
-      }
-    `;
-  // Fragment shader for CSG operations
-  private fsSource = `
-      precision highp float;
-
-      // Distance functions for basic shapes
-      float sphereSDF(vec3 p, float r) {
-        return length(p) - r;
-      }
-
-      float boxSDF(vec3 p, vec3 b) {
-        vec3 q = abs(p) - b;
-        return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
-      }
-
-      // CSG operations
-      float opUnion(float d1, float d2) {
-        return min(d1, d2);
-      }
-
-      float opIntersection(float d1, float d2) {
-        return max(d1, d2);
-      }
-
-      float opDifference(float d1, float d2) {
-        return max(d1, -d2);
-      }
-
-      // Combine shapes using CSG
-      float getDistance(vec3 p) {
-        float d1 = sphereSDF(p - vec3(0.5, 0.0, 0.0), 0.5);
-        float d2 = boxSDF(p + vec3(0.5, 0.0, 0.0), vec3(0.3));
-        return opDifference(d1, d2);
-      }
-
-      // Ray marching
-      vec3 getNormal(vec3 p) {
-        float eps = 0.001;
-        vec3 n;
-        n.x = getDistance(p + vec3(eps, 0.0, 0.0)) - getDistance(p - vec3(eps, 0.0, 0.0));
-        n.y = getDistance(p + vec3(0.0, eps, 0.0)) - getDistance(p - vec3(0.0, eps, 0.0));
-        n.z = getDistance(p + vec3(0.0, 0.0, eps)) - getDistance(p - vec3(0.0, 0.0, eps));
-        return normalize(n);
-      }
-
-      void main() {
-        vec2 uv = gl_FragCoord.xy / vec2(640.0, 480.0) * 2.0 - 1.0;
-        vec3 ro = vec3(0.0, 0.0, 5.0); // Ray origin
-        vec3 rd = normalize(vec3(uv, -1.0)); // Ray direction
-
-        float t = 0.0;
-        for (int i = 0; i < 100; i++) {
-          vec3 p = ro + t * rd;
-          float d = getDistance(p);
-          if (d < 0.001) {
-            vec3 n = getNormal(p);
-            vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
-            float diff = max(dot(n, lightDir), 0.0);
-            gl_FragColor = vec4(vec3(diff), 1.0);
-            return;
-          }
-          t += d;
-        }
-
-        gl_FragColor = vec4(0.0); // Background color
-      }
-    `;
+  private threeExporter = new STLExporter();
+  private threeLoader = new STLLoader();
 
   constructor(
     editorData: EditorData,
@@ -111,14 +46,15 @@ class SpellTracker {
   public updateModulesList(newList: TrackerModule[]) {
     this.modulesList = newList;
   }
-
-  public addBaseLayer1(): Promise<THREE.Object3D> {
-    return new Promise((resolve) => {
+  /*
+  public async addBaseLayer1(): Promise<THREE.Object3D> {
+    return new Promise(async (resolve) => {
       const length =
         this.editorData.boundingBox.maxX +
         20 -
         this.editorData.boundingBox.minX +
         20;
+      const layerColor = 0x00ff00;
       //base should consist of bottom layer, holes for magnets, and path for track/dials
       //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
       //but also add textDepth
@@ -136,14 +72,19 @@ class SpellTracker {
         20;
       const geometry = new THREE.BoxGeometry(length, height, depth);
       const material = new THREE.MeshStandardMaterial({
-        color: 0x00ff00,
+        color: layerColor,
       });
       //material.setValues({ opacity: 0.5, transparent: true });
       const layer1Base = new THREE.Mesh(geometry, material);
       layer1Base.position.set(length / 2, -height / 2, depth / 2); //top should be at 0
       layer1Base.updateMatrix();
-      let l1BCSG = CSG.fromMesh(layer1Base, 0);
-      let moduleIndex = 1;
+
+      let l1BJSC = await this.convertThreeToJSCAD(layer1Base);
+
+      
+let l1BJSC = this.convertThreeToJSCAD(layer1Base);
+      //let l1BCSG = CSG.fromMesh(layer1Base, 0);
+      //let moduleIndex = 1;
       for (const module of this.modulesList) {
         if (module['type'] === 0) {
           const track = this.addSliderLayer1(
@@ -153,28 +94,172 @@ class SpellTracker {
             Number(module['data'][3]),
             module.editorData,
           );
-          const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
-          l1BCSG = l1BCSG.subtract(trackCubeCSG);
+          const trackCubeJSC = this.convertThreeToJSCAD(track);
+          l1BJSC = booleans.subtract(l1BJSC, trackCubeJSC);
+          //const trackCubeCSG = CSG.fromMesh(track, moduleIndex);
+          //l1BCSG = l1BCSG.subtract(trackCubeCSG);
         } else if (module['type'] === 1) {
           const dialCircle = this.addDialCircle(
             Number(module['data'][0]),
             Number(module['data'][1]),
             module.editorData,
           );
-          const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
-          l1BCSG = l1BCSG.subtract(dialCSG);
+          const dialJSC = this.convertThreeToJSCAD(dialCircle);
+          l1BJSC = booleans.subtract(l1BJSC, dialJSC);
+          //const dialCSG = CSG.fromMesh(dialCircle, moduleIndex);
+          //l1BCSG = l1BCSG.subtract(dialCSG);
         } else if (module['type'] === 2) {
           continue;
         }
-        moduleIndex++;
+        //moduleIndex++;
       }
-      const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+      //const layer1 = CSG.toMesh(l1BCSG, layer1Base.matrix, layer1Base.material);
+      const layer1 = this.convertJSCADToThree(l1BJSC, layerColor);
       layer1.name = 'layer1';
       resolve(layer1);
+      
     });
+  } */
+
+  public async addBaseLayer1(): Promise<THREE.Object3D> {
+    const length =
+      this.editorData.boundingBox.maxX +
+      20 -
+      this.editorData.boundingBox.minX +
+      20;
+    const layerColor = 0x00ff00;
+    const height =
+      this.editorData.magnetHeight +
+      (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
+      this.editorData.textDepth +
+      1;
+    this.layer1Height = height;
+    const depth =
+      this.editorData.boundingBox.maxY +
+      20 -
+      this.editorData.boundingBox.minY +
+      20;
+    const geometry = new THREE.BoxGeometry(length, height, depth);
+    const material = new THREE.MeshStandardMaterial({ color: layerColor });
+    const layer1Base = new THREE.Mesh(geometry, material);
+    layer1Base.position.set(length / 2, -height / 2, depth / 2);
+    layer1Base.updateMatrix();
+    this.applyTransformationMatrix(layer1Base);
+
+    let l1BJSC = await this.convertThreeToJSCAD(layer1Base);
+
+    const promises = this.modulesList.map(async (module) => {
+      if (module['type'] === 0) {
+        const track = await this.addSliderLayer1(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          Number(module['data'][2]),
+          Number(module['data'][3]),
+          module.editorData,
+        );
+        const trackCubeJSC = await this.convertThreeToJSCAD(track);
+        l1BJSC = booleans.subtract(l1BJSC, trackCubeJSC);
+      } else if (module['type'] === 1) {
+        const dialCircle = await this.addDialCircle(
+          Number(module['data'][0]),
+          Number(module['data'][1]),
+          module.editorData,
+        );
+        const dialJSC = await this.convertThreeToJSCAD(dialCircle);
+        l1BJSC = booleans.subtract(l1BJSC, dialJSC);
+      }
+    });
+
+    await Promise.all(promises);
+
+    const layer1 = await this.convertJSCADToThree(l1BJSC, layerColor);
+    layer1.name = 'layer1';
+    return layer1;
   }
 
-  public addSliderLayer1(
+  private convertThreeToJSCADSync(model: THREE.Mesh): Geom3 {
+    const meshSTL = this.threeExporter.parse(model, {
+      binary: true,
+    });
+    const blob = new Blob([meshSTL], { type: 'text/plain' });
+    //console.log(typeof meshSTL);
+    //console.log(meshSTL);
+    console.log('Trying with blob');
+    const filereader = new FileReaderSync();
+    const jscBlob = filereader.readAsArrayBuffer(blob);
+    const jscGeom = deserialize.deserialize({ output: 'geometry' }, jscBlob);
+    return jscGeom as Geom3;
+  }
+
+  private convertJSCADToThreeSync(
+    model: Geom3,
+    modelColor: number,
+  ): THREE.Mesh {
+    const stlArray = serialize.serialize({ binary: true }, model);
+    const stlBuffer = stlArray[0];
+    const blob = new Blob([stlBuffer], { type: 'application/octet-stream' });
+    const filereader = new FileReaderSync();
+    const threeBlob = filereader.readAsArrayBuffer(blob);
+    console.log(blob);
+    console.log(threeBlob);
+    const threeModel = this.threeLoader.parse(threeBlob);
+    return new THREE.Mesh(
+      threeModel,
+      new THREE.MeshStandardMaterial({ color: modelColor }),
+    );
+  }
+
+  private async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
+    const stlString = this.threeExporter.parse(model, { binary: true });
+    const blob = new Blob([stlString], { type: 'application/octet-stream' });
+    const arrayBuffer = await blob.arrayBuffer();
+    const jscGeom = deserialize.deserialize(
+      { output: 'geometry' },
+      new Uint8Array(arrayBuffer),
+    );
+    return jscGeom as Geom3;
+  }
+
+  private async convertJSCADToThree(
+    model: Geom3,
+    modelColor: number,
+  ): Promise<THREE.Mesh> {
+    const stlData = serialize.serialize({ binary: true }, model);
+    //console.log(stlArray);
+    //const stlBuffer = stlArray[2];
+    const blob = new Blob(stlData);
+    const arrayBuffer = await blob.arrayBuffer();
+    const geometry = this.threeLoader.parse(arrayBuffer);
+    return new THREE.Mesh(
+      geometry,
+      new THREE.MeshStandardMaterial({ color: modelColor }),
+    );
+  }
+
+  private applyTransformationMatrix(object: THREE.Mesh): void {
+    // Ensure the matrix is up to date
+    object.updateMatrix();
+    object.updateMatrixWorld(true);
+
+    // Get the object's transformation matrix
+    const matrix = object.matrixWorld.clone();
+
+    // Apply the matrix to the geometry
+    const geometry = object.geometry;
+    geometry.applyMatrix4(matrix);
+
+    // Optionally, clear the transformation of the object
+    object.matrix.identity();
+    object.matrixWorld.identity();
+    object.position.set(0, 0, 0);
+    object.rotation.set(0, 0, 0);
+    object.scale.set(1, 1, 1);
+
+    // Recompute vertex normals if necessary
+    geometry.computeVertexNormals();
+  }
+
+  public async addSliderLayer1(
     length: number,
     rotation: number,
     translateX: number,
@@ -240,22 +325,35 @@ class SpellTracker {
     const trackCube = new THREE.Mesh(geometry, material);
     trackCube.position.set(newX, -h / 2 + 1, newZ);
     trackCube.updateMatrix();
-    let trackCSG = CSG.fromMesh(trackCube, 0);
-    let cylIndex = 1;
+    this.applyTransformationMatrix(trackCube);
+    const geomArr = [];
+    let trackJSC = await this.convertThreeToJSCAD(trackCube);
+    geomArr.push(trackJSC);
+    //let trackCSG = CSG.fromMesh(trackCube, 0);
+    //let cylIndex = 1;
     for (const cyl of cylArr) {
-      const cylCSG = CSG.fromMesh(cyl, cylIndex);
-      trackCSG = trackCSG.union(cylCSG);
-      cylIndex++;
+      //const cylCSG = CSG.fromMesh(cyl, cylIndex);
+      const cylJSC = await this.convertThreeToJSCAD(cyl);
+      geomArr.push(cylJSC);
+      //trackCSG = trackCSG.union(cylCSG);
+      //cylIndex++;
     }
-    const trackMesh = CSG.toMesh(
-      trackCSG,
-      trackCube.matrix,
-      trackCube.material,
-    );
+    trackJSC = booleans.union(geomArr);
+    //const trackMesh = CSG.toMesh(
+    //trackCSG,
+    //trackCube.matrix,
+    //trackCube.material,
+    //);
+    const trackMesh = this.convertJSCADToThree(trackJSC, 0xffff00);
     return trackMesh;
   }
 
-  public addMagCyl(tX: number, tY: number, tZ: number, moduleInfo: EditorData) {
+  public addMagCyl(
+    tX: number,
+    tY: number,
+    tZ: number,
+    moduleInfo: EditorData,
+  ): THREE.Mesh {
     const r = moduleInfo.magnetDiameter / 2 + moduleInfo.partGapWidth;
     const h = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
     const radialSegments = 32; //maybe overkill
@@ -264,11 +362,12 @@ class SpellTracker {
     const cylinder = new THREE.Mesh(geometry, material);
     cylinder.position.set(tX, tY, tZ);
     cylinder.updateMatrix();
+    this.applyTransformationMatrix(cylinder);
     //this.scene.add(cylinder);
     return cylinder;
   }
 
-  public addDialCircle(
+  public async addDialCircle(
     translationX: number,
     translationY: number,
     moduleInfo: EditorData,
@@ -293,6 +392,7 @@ class SpellTracker {
     const dialCircle = new THREE.Mesh(geometry, material);
     dialCircle.position.set(newX, -h / 2 + 1, newZ);
     dialCircle.updateMatrix();
+    this.applyTransformationMatrix(dialCircle);
     const magCyl = this.addMagCyl(
       newX,
       magYTranslate,
@@ -310,12 +410,22 @@ class SpellTracker {
     );
     knobAlignCyl.position.set(newX, magYTranslate, newZ);
     knobAlignCyl.updateMatrix();
-    let dialCSG = CSG.fromMesh(dialCircle);
-    const magCylCSG = CSG.fromMesh(magCyl);
-    const knobAlignCSG = CSG.fromMesh(knobAlignCyl);
-    dialCSG = dialCSG.union(magCylCSG);
-    dialCSG = dialCSG.union(knobAlignCSG);
-    const completeDialCircle = CSG.toMesh(dialCSG, dialCircle.matrix, material);
+    this.applyTransformationMatrix(knobAlignCyl);
+    const unionArr = [];
+    //let dialCSG = CSG.fromMesh(dialCircle);
+    unionArr.push(await this.convertThreeToJSCAD(dialCircle));
+    //const magCylCSG = CSG.fromMesh(magCyl);
+    unionArr.push(await this.convertThreeToJSCAD(magCyl));
+    //const knobAlignCSG = CSG.fromMesh(knobAlignCyl);
+    unionArr.push(await this.convertThreeToJSCAD(knobAlignCyl));
+    const completeDialCircleJSC = booleans.union(unionArr);
+    const completeDialCircle = await this.convertJSCADToThree(
+      completeDialCircleJSC,
+      0xff0000,
+    );
+    ///dialCSG = dialCSG.union(magCylCSG);
+    //dialCSG = dialCSG.union(knobAlignCSG);
+    //const completeDialCircle = CSG.toMesh(dialCSG, dialCircle.matrix, material);
     return completeDialCircle;
   }
 
@@ -373,6 +483,7 @@ class SpellTracker {
     }
     myText.position.set(translationX, -h / 2 + translationY, translationZ);
     myText.updateMatrix();
+    //this.applyTransformationMatrix()
     myText.geometry.computeBoundingBox();
     const textCSG = CSG.fromMesh(myText);
     const divotGeo = myText.geometry.boundingBox;

@@ -1,4 +1,4 @@
-import { SpellTracker } from '../../utils/Object-Generation';
+import { SpellTracker } from '../../utils/Object-Gen-Combo';
 
 /// <reference lib="webworker" />
 

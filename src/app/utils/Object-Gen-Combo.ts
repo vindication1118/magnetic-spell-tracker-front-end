@@ -433,7 +433,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
   //X and Z translation Values mark bottom LEFT corner IE bottom of first character in string
   //Calculate Divot in here based on text bounding box, return an object of form:
   // {textCSG: textCSG, divotCSG: divotCSG}
-  public addText(
+  public async addText(
     rotation: number,
     translationX: number,
     translationZ: number,
@@ -442,7 +442,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     height: number,
     moduleInfo: EditorData,
     translationY?: number,
-  ): { text: CSG; divot: CSG } {
+  ): Promise<{ text: CSG; divot: CSG }> {
     const h = moduleInfo.textDepth;
     const loader = new FontLoader();
     const loadedFont = loader.parse(fontData);
@@ -483,7 +483,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     }
     myText.position.set(translationX, -h / 2 + translationY, translationZ);
     myText.updateMatrix();
-    //this.applyTransformationMatrix()
+    //this.applyTransformationMatrix()`
     myText.geometry.computeBoundingBox();
     const textCSG = CSG.fromMesh(myText);
     const divotGeo = myText.geometry.boundingBox;

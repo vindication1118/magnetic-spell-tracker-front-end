@@ -29,6 +29,7 @@ import { TrackerModule } from '../../interfaces/tracker-module';
 import { cloneDeep } from 'lodash-es';
 import { ModuleMenuComponent } from '../module-menu/module-menu.component';
 import { PathPosition } from '../../interfaces/path-position';
+import { MathUtils } from 'three';
 
 @Component({
   selector: 'app-d3container',
@@ -1159,7 +1160,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         );
         const svgPath = path.toPathData(5);
         console.log(svgPath);
-        this.addExtraPoints(svgPath);
+        this.addExtraPointsToLines(svgPath);
         const textGroup = d3
           .select('#svgContainer svg')
           .append('path')
@@ -1185,7 +1186,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     });
   }
 
-  public addExtraPoints(pathData: string) {
+  public addExtraPointsToLines(pathData: string) {
     const commands = pathData.match(/[a-df-z][^a-df-z]*/gi);
     const positions = this.getPositionsFromCommands(commands);
     console.log(commands?.length + ' ' + positions.length);

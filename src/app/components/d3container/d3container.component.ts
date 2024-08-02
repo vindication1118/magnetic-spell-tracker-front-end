@@ -29,7 +29,9 @@ import { TrackerModule } from '../../interfaces/tracker-module';
 import { cloneDeep } from 'lodash-es';
 import { ModuleMenuComponent } from '../module-menu/module-menu.component';
 import { PathPosition } from '../../interfaces/path-position';
-import { MathUtils } from 'three';
+import { CharPath } from '../../interfaces/char-path';
+//import { TextBoundingBox } from '../../interfaces/text-bounding-box';
+import * as THREE from 'three';
 
 @Component({
   selector: 'app-d3container',
@@ -971,6 +973,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     });
   }
 
+  //uses standard canvas text with font families and all that jazz. Need to deprecate
   public getFontSize(
     inputText: string,
     fontSize: number,
@@ -1001,6 +1004,73 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     return tbbox;
   }
 
+  /** Adds dummy svg text, measures height, adds it to info - DO NOT USE
+   * Uses arbitrary opentype compatible fonts - this is best option for consistency. Could
+   * also add ability to upload ttf file and use that, but not MVP so do later
+   * This one does it based on paths instead of a single path for whole word and is probably useless
+   */
+  public getPathsFontSize(
+    inputText: string,
+    fontSize: number,
+    fontURL: string = '../../../assets/Fonts/M_PLUS_1p/MPLUS1p-ExtraBold.ttf',
+  ): Promise<CharPath[]> {
+    return new Promise((resolve) => {
+      const buffer = fetch(fontURL).then((res) => res.arrayBuffer());
+      // case 2: from filesystem (node)
+      //const buffer = fs.promises.readFile('./my.woff');
+      // case 3: from an <input type=file id=myfile>
+      //const buffer = document.getElementById('myfile').files[0].arrayBuffer(); - maybe allow this later?
+
+      // if not running in async context:
+      buffer
+        .then((data) => {
+          const font = opentype.parse(data);
+          //try getPaths for one path per character?
+          const paths = font.getPaths(inputText, 0, 0, fontSize);
+          const pathDataArr: CharPath[] = paths.map((charPath, index) => {
+            return { char: inputText[index], data: charPath.toPathData(5) };
+          });
+          pathDataArr.forEach((charPath) => {
+            const tbbox = { x: 0, y: 0, width: 0, height: 0 };
+            const svgPath = charPath.data;
+            const textGroup = d3
+              .select('#svgContainer svg')
+              .append('path')
+              .attr('d', svgPath)
+              .style('stroke', this.lineColor)
+              .style('stroke-width', 0.25)
+              .style('fill', this.lineColor)
+              .style('opacity', 0);
+
+            const tGNode = textGroup.node();
+            if (tGNode) {
+              const textBBox = tGNode.getBBox();
+              tbbox.x = textBBox.x;
+              tbbox.y = textBBox.y;
+              tbbox.width = textBBox.width;
+              tbbox.height = textBBox.height;
+            }
+            charPath.tbbox = tbbox;
+            textGroup.remove();
+          });
+          console.log(pathDataArr);
+          resolve(pathDataArr);
+        })
+        .catch(() => {
+          resolve([]);
+        })
+        .finally(() => {
+          resolve([]);
+        });
+    });
+  }
+
+  /**USE THIS ONE
+   * Adds dummy text module to canvas as svg path, measures bounds, then uses it to calculate
+   * translation numbers for calling font.getPaths(). It is supposed to use getPath and not getPaths since
+   * all we're after here is a single arg for getPaths. Kinda sucky to essentially do the same calculation
+   * twice - maybe target for refactor later.
+   */
   public getPathFontSize(
     inputText: string,
     fontSize: number,
@@ -1128,6 +1198,8 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     }
   }
 
+  /** Uses svg and opentype.js compatible fonts - preferred option going forward */
+
   public addPathText(
     rotation: number,
     translationX: number,
@@ -1152,29 +1224,44 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           : translationY;
       buffer.then((data) => {
         const font = opentype.parse(data);
-        const path = font.getPath(
+        const paths = font.getPaths(
           inputText,
           translationX,
           testHeight,
           fontSize,
         );
-        const svgPath = path.toPathData(5);
-        console.log(svgPath);
-        this.addExtraPointsToLines(svgPath);
-        const textGroup = d3
-          .select('#svgContainer svg')
-          .append('path')
-          .attr('d', svgPath)
-          .style('stroke', this.lineColor)
-          .style('stroke-width', 0.25)
-          .style('fill', this.lineColor);
-        const textGroupNode = textGroup.node()?.outerHTML;
-        //console.log(textGroupNode);
-        const newData = cloneDeep(this.editorData);
-        this.addModule({
-          type: 3,
-          data: [rotation, translationX, testHeight, textGroupNode!, inputText],
-          editorData: newData,
+        const pathDataArr: CharPath[] = paths.map((charPath, index) => {
+          return { char: inputText[index], data: charPath.toPathData(5) };
+        });
+
+        pathDataArr.forEach((charPath) => {
+          const newPathData = this.addExtraPointsToLines(charPath.data);
+          console.log(newPathData);
+          const textGroup = d3
+            .select('#svgContainer svg')
+            .append('path')
+            .attr('d', newPathData)
+            .style('stroke', this.lineColor)
+            .style('stroke-width', 0.25)
+            .style('fill', this.lineColor);
+          const textGroupNode = textGroup.node()?.outerHTML;
+          //console.log(textGroupNode);
+          //gotta add and save this since we're allowing changes between module addition for making test prints
+          //Once a user has figured out optimal settings for themselves, this is likely to be the same across
+          //all modules
+          const newEditorData = cloneDeep(this.editorData);
+          this.addModule({
+            type: 3,
+            data: [
+              rotation,
+              translationX,
+              testHeight,
+              textGroupNode!,
+              charPath.char,
+              newPathData,
+            ],
+            editorData: newEditorData,
+          });
         });
       });
       this.checkExtremes(
@@ -1186,26 +1273,78 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     });
   }
 
-  public addExtraPointsToLines(pathData: string) {
+  /**Adds extra segments to lines for voronoi diagram purposes
+   * @param {string} pathData - string of svg path commands, found after a d= attribute in a <path> tag
+   * @param {number} density - number indicating density of points along a line. I think it means max dist
+   * between points on a line, so that if you have a really short line, and a really long line, they
+   * don't both end up with 12 segments. Regardless, smaller number here means more segments
+   * which means better voronoi diagram.
+   */
+  public addExtraPointsToLines(pathData: string, density = 0.05) {
+    //let lineCommandCount = 0;
     const commands = pathData.match(/[a-df-z][^a-df-z]*/gi);
+    //console.log('Command count: ' + commands?.length);
     const positions = this.getPositionsFromCommands(commands);
-    console.log(commands?.length + ' ' + positions.length);
+    //console.log(positions);
+    const mergedCommands: string[] = [];
     if (commands !== null) {
       for (let i = 0; i < commands.length; i++) {
         const type = commands[i][0];
-        const args = commands[i]
-          .slice(1)
-          .trim()
-          .split(/[\s,]+/)
-          .map(Number);
+        //console.log('Type: ' + type + 'Length: ' + type.length);
+        //const args = commands[i]
+        //.slice(1)
+        //.trim()
+        //.split(/[\s,]+/)
+        //.map(Number);
         if (type === 'L') {
-          const prevPosition = positions[i - 1];
-          const currentPos = args;
-          console.log(prevPosition);
-          console.log(currentPos);
+          //lineCommandCount++;
+          //const newPoints: string[] = [];
+          //console.log(args);
+          const prevPos = positions[i - 1];
+          const currentPos = positions[i];
+          //console.log(prevPos);
+          //console.log(currentPos);
+          //newPoints.push(commands[i - 1]); // Add the original point?
+
+          // Determine the number of segments based on density
+          const distance = this.getDist(prevPos, currentPos);
+          //console.log('Distance: ' + distance);
+          const segments = Math.floor(distance / density);
+          //console.log('Segments: ' + segments);
+
+          // Interpolate points along the straight line segment
+          for (let j = 1; j < segments; j++) {
+            const t = j / segments;
+            const x = THREE.MathUtils.lerp(prevPos.x, currentPos.x, t);
+            const y = THREE.MathUtils.lerp(prevPos.y, currentPos.y, t);
+            const newCommand: string = 'L' + x + ' ' + y;
+            //console.log('Pushing new command: ' + newCommand);
+            mergedCommands.push(newCommand);
+          }
+        } else {
+          //console.log('Type of commands[i]: ' + typeof commands[i]);
+          mergedCommands.push(commands[i]);
         }
       }
+      //console.log('Line Command Count ' + lineCommandCount);
+      //console.log('Merged Command Count: ' + mergedCommands.length);
+      //console.log('ErrorBars = ' + density * lineCommandCount);
+      //console.log(
+      //'Expected (+- density * Line command Count = ' +
+      //(commands.length + density * lineCommandCount),
+      //);
     }
+    return mergedCommands.join('');
+  }
+
+  public getDist(prevPos: PathPosition, currentPos: PathPosition): number {
+    //console.log(prevPos);
+    //console.log(currentPos);
+    const a = currentPos.x - prevPos.x;
+    const b = currentPos.y - prevPos.y;
+    //
+    //console.log('a: ' + a + ' b: ' + b);
+    return Math.sqrt(a ** 2 + b ** 2);
   }
 
   public getPositionsFromCommands(commands: RegExpMatchArray | null) {

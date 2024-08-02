@@ -595,9 +595,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      */
     console.log(shapes);
     const myShapes = shapes.map((shape) => {
-      const points = shape.getPoints();
-      const densePoints = this.addExtraPoints(points, 12);
-      return densePoints;
+      const points = shape.extractPoints(5);
+      const allPoints = [...points.shape, ...points.holes.flat()];
+      return allPoints;
     });
     const myCoords: d3.Delaunay.Point[][] = [];
     for (const char of myShapes) {
@@ -610,7 +610,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     }
     //console.log(myCoords);
 
-    this.generateVoronoiFromText(myCoords);
+    this.generateVoronoiFromText(myCoords, moduleInfo);
     const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const mesh = new THREE.Mesh(geometry, material);
@@ -622,7 +622,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return meshJSON;
   }
 
-  public generateVoronoiFromText(coords: d3.Delaunay.Point[][]) {
+  public generateVoronoiFromText(
+    coords: d3.Delaunay.Point[][],
+    moduleInfo: TextModule,
+  ) {
     //console.log(this.svgGroup);
     for (const char of coords) {
       const delaunay = d3.Delaunay.from(char);
@@ -635,6 +638,13 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         .style('stroke', 'white')
         .style('stroke-width', 0.05);
     }
+    console.log(moduleInfo.data);
+    this.svgGroup
+      .append('path')
+      .attr('d', moduleInfo.data[5])
+      .style('stroke', 'red')
+      .style('stroke-width', 0.05)
+      .style('fill', 'none');
   }
 
   public addExtraPoints(points: THREE.Vector2[], density = 10) {

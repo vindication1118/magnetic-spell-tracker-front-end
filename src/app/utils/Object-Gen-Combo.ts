@@ -841,7 +841,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     return textObj;
   }
 
-  public createLayer3(): Promise<THREE.Mesh> {
+  public async createLayer3(): Promise<THREE.Mesh> {
     return new Promise((resolve) => {
       //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
       const length =
@@ -907,8 +907,10 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
             module.editorData,
             5,
           );
-          layer3CSG = layer3CSG.subtract(csgObj.divot);
-          layer3CSG = layer3CSG.union(csgObj.text);
+          csgObj.then((result) => {
+            layer3CSG = layer3CSG.subtract(result.divot);
+            layer3CSG = layer3CSG.union(result.text);
+          });
         } else if (module['type'] === 3) {
           const textModule = module as TextModule;
           const csgObj = this.addTextLayer3(textModule['meshJSON']);

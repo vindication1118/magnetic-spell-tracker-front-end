@@ -1208,10 +1208,10 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     fontSize: number,
     yTranslateCentered?: boolean,
   ) {
+    const fontPath = '../../../assets/Fonts/M_PLUS_1p/MPLUS1p-ExtraBold.ttf';
+    //const fontPath = '../../../assets/Fonts/Ace_Records/Ace_Records.ttf';
     // case 1: from an URL
-    const buffer = fetch(
-      '../../../assets/Fonts/M_PLUS_1p/MPLUS1p-ExtraBold.ttf',
-    ).then((res) => res.arrayBuffer());
+    const buffer = fetch(fontPath).then((res) => res.arrayBuffer());
     // case 2: from filesystem (node)
     //const buffer = fs.promises.readFile('./my.woff');
     // case 3: from an <input type=file id=myfile>
@@ -1236,7 +1236,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
 
         pathDataArr.forEach((charPath) => {
           const newPathData = this.addExtraPointsToLines(charPath.data);
-          console.log(newPathData);
+          //console.log(newPathData);
           const textGroup = d3
             .select('#svgContainer svg')
             .append('path')
@@ -1280,7 +1280,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
    * don't both end up with 12 segments. Regardless, smaller number here means more segments
    * which means better voronoi diagram.
    */
-  public addExtraPointsToLines(pathData: string, density = 0.05) {
+  public addExtraPointsToLines(pathData: string, density = 0.1) {
     //let lineCommandCount = 0;
     const commands = pathData.match(/[a-df-z][^a-df-z]*/gi);
     //console.log('Command count: ' + commands?.length);
@@ -1309,7 +1309,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           // Determine the number of segments based on density
           const distance = this.getDist(prevPos, currentPos);
           //console.log('Distance: ' + distance);
-          const segments = Math.floor(distance / density);
+          const segments = Math.max(Math.floor(distance / density), 4);
           //console.log('Segments: ' + segments);
 
           // Interpolate points along the straight line segment

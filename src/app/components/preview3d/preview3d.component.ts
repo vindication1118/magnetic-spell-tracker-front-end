@@ -28,6 +28,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
 import * as d3 from 'd3';
 import { PathPosition } from '../../interfaces/path-position';
+import { CommandHandler } from '../../utils/SVGUtils';
+import { WebGpuOpsService } from '../../services/web-gpu-ops.service';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 @Component({
   selector: 'app-preview3d',
@@ -115,7 +117,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   // SSAO pass
   private ssaoPass!: SSAOPass;
 
-  constructor(private ngZone: NgZone) {}
+  constructor(
+    private ngZone: NgZone,
+    private webGpuOpsService: WebGpuOpsService,
+  ) {}
   /*
   private initWebGL(): void {
     const aspectRatio = this.getAspectRatio();
@@ -433,10 +438,56 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       .attr('viewBox', '0 0 200 200')
       .attr('width', '100%')
       .attr('height', '100%');
+    const zoomableGroup = this.svgGroup.append('g');
+
+    // Add your content to the zoomable group
+    zoomableGroup
+      .append('rect')
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .attr('fill', 'none')
+      .attr('x', 0)
+      .attr('y', 0);
+
+    // Define the zoomed function
+    function zoomed(event: d3.D3ZoomEvent<SVGGElement, unknown>): void {
+      // Apply the transformation to the <g> element
+      zoomableGroup.attr('transform', event.transform.toString());
+    }
+
+    // Set up the zoom behavior
+    const zoom: d3.ZoomBehavior<SVGSVGElement, unknown> = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.5, 5]) // Zoom limits
+      .on('zoom', zoomed); // Attach the zoomed function to the zoom event
+
+    // Apply the zoom behavior to the SVG
+    this.svgGroup.call(zoom);
+
     this.tracker = new SpellTracker(this.editorData, this.modulesList);
     //this.initWebGL();
     this.createScene();
     this.startRenderingLoop();
+  }
+
+  private async calculate3DText(
+    interior: THREE.Vec2[],
+    exterior: THREE.Vec2[],
+  ) {
+    try {
+      await this.webGpuOpsService.initialize();
+      const workgroupSize =
+        await this.webGpuOpsService.selectOptimalWorkgroupSize();
+      const vectors =
+        await this.webGpuOpsService.runComputeShaderWithDynamicWorkgroupSize(
+          workgroupSize,
+          interior,
+          exterior,
+        );
+      console.log('Converted Vectors:', vectors);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   private updateLighting(
@@ -544,7 +595,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
         const textModule = module as TextModule;
-        console.log(textModule.data);
+        //console.log(textModule.data);
         const textMesh = this.generateTextMeshJSON(
           module['data'][3] as unknown as string,
           module as TextModule,
@@ -570,8 +621,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
     const loader = new SVGLoader();
     const data = loader.parse(svgPathNode);
+    //get path for each character
     const paths = data.paths;
-    console.log(paths);
+    //console.log(paths);
     const shapes: THREE.Shape[] = [];
     for (let i = 0; i < paths.length; i++) {
       const path = paths[i];
@@ -593,24 +645,16 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      * (like i is 2 because of the i dot) in our string has its own array of
      * {x: xval, y: yval} objects
      */
-    console.log(shapes);
+    //console.log(shapes);
     const myShapes = shapes.map((shape) => {
-      const points = shape.extractPoints(5);
-      const allPoints = [...points.shape, ...points.holes.flat()];
-      return allPoints;
+      return shape.extractPoints(5);
+      //const allPoints = [...points.shape, ...points.holes.flat()];
+      //return allPoints;
     });
-    const myCoords: d3.Delaunay.Point[][] = [];
-    for (const char of myShapes) {
-      const coordArr: d3.Delaunay.Point[] = [];
-      for (const coord of char) {
-        const currentCoord: d3.Delaunay.Point = [coord.x, coord.y];
-        coordArr.push(currentCoord);
-      }
-      myCoords.push(coordArr);
-    }
+
     //console.log(myCoords);
 
-    this.generateVoronoiFromText(myCoords, moduleInfo);
+    this.generateVoronoiFromText(myShapes, moduleInfo);
     const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     const mesh = new THREE.Mesh(geometry, material);
@@ -622,27 +666,47 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return meshJSON;
   }
 
+  public extractFlatCoordinates(shapeData: {
+    shape: THREE.Vec2[];
+    holes: THREE.Vec2[][];
+  }): d3.Delaunay.Point[] {
+    const coordArr: d3.Delaunay.Point[] = [];
+    for (const coord of [...shapeData.shape, ...shapeData.holes.flat()]) {
+      const currentCoord: d3.Delaunay.Point = [coord.x, coord.y];
+      coordArr.push(currentCoord);
+    }
+
+    return coordArr;
+  }
+
   public generateVoronoiFromText(
-    coords: d3.Delaunay.Point[][],
+    shapes: { shape: THREE.Vec2[]; holes: THREE.Vec2[][] }[],
     moduleInfo: TextModule,
   ) {
     //console.log(this.svgGroup);
-    for (const char of coords) {
+    const zoomableGroup = this.svgGroup.select('g');
+    for (const shape of shapes) {
+      const char = this.extractFlatCoordinates(shape);
       const delaunay = d3.Delaunay.from(char);
-      const voronoi = delaunay.voronoi(this.getVoronoiBounds(char));
+      const vBounds = this.getVoronoiBounds(char);
+      const voronoi = delaunay.voronoi(vBounds);
       const svgPath = voronoi.render();
-      //console.log(svgPath);
-      this.svgGroup
-        .append('path')
-        .attr('d', svgPath)
-        .style('stroke', 'white')
-        .style('stroke-width', 0.05);
+      console.log(svgPath);
+      const svgPaths = CommandHandler.splitPath(svgPath, vBounds, shape);
+      svgPaths.forEach((path) => {
+        //  console.log(path);
+        zoomableGroup
+          .append('path')
+          .attr('d', path)
+          .style('stroke', CommandHandler.getRandomColor())
+          .style('stroke-width', 0.05);
+      });
     }
-    console.log(moduleInfo.data);
-    this.svgGroup
+    //console.log(moduleInfo.data);
+    zoomableGroup
       .append('path')
       .attr('d', moduleInfo.data[5])
-      .style('stroke', 'red')
+      .style('stroke', 'white')
       .style('stroke-width', 0.05)
       .style('fill', 'none');
   }

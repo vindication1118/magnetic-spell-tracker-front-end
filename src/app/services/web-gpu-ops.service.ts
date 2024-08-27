@@ -1,117 +1,17 @@
+/// <reference types="@webgpu/types" />
+
 import { PathPosition } from '../interfaces/path-position';
 import { Injectable } from '@angular/core';
 import * as THREE from 'three';
+import * as jscad from '@jscad/modeling';
+import { Vec3 } from '@jscad/modeling/src/maths/vec3';
+//import _ from 'lodash';
 
 @Injectable({
   providedIn: 'root',
 })
 export class WebGpuOpsService {
   constructor() {}
-  public async calculateVertices() {
-    if (!navigator.gpu) {
-      console.error('WebGPU not supported in this browser.');
-      return;
-    }
-
-    const adapter = await navigator.gpu.requestAdapter();
-    const device = await adapter?.requestDevice();
-    if (!device) {
-      console.error('Failed to obtain WebGPU device.');
-      return;
-    }
-
-    // Load shader code
-    const shaderCode = await fetch('/shaders/nearestVertex.wgsl').then(
-      (response) => response.text(),
-    );
-
-    // Define vertices (for example purposes, replace with your data)
-    const verticesAtY0 = new Float32Array([
-      /* ... */
-    ]);
-    const verticesAtY1 = new Float32Array([
-      /* ... */
-    ]);
-
-    // Create buffers
-    const vertexBufferY0 = device.createBuffer({
-      size: verticesAtY0.byteLength,
-      usage: GPUBufferUsage.STORAGE,
-      mappedAtCreation: true,
-    });
-    new Float32Array(vertexBufferY0.getMappedRange()).set(verticesAtY0);
-    vertexBufferY0.unmap();
-
-    const vertexBufferY1 = device.createBuffer({
-      size: verticesAtY1.byteLength,
-      usage: GPUBufferUsage.STORAGE,
-      mappedAtCreation: true,
-    });
-    new Float32Array(vertexBufferY1.getMappedRange()).set(verticesAtY1);
-    vertexBufferY1.unmap();
-
-    const resultBuffer = device.createBuffer({
-      size: verticesAtY1.length * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-    });
-
-    // Create shader module
-    const shaderModule = device.createShaderModule({
-      code: shaderCode,
-    });
-
-    // Set up pipeline
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: {
-        module: shaderModule,
-        entryPoint: 'main',
-      },
-    });
-
-    // Create bind group
-    const bindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: vertexBufferY0 } },
-        { binding: 1, resource: { buffer: vertexBufferY1 } },
-        { binding: 2, resource: { buffer: resultBuffer } },
-      ],
-    });
-
-    // Create command encoder and compute pass
-    const commandEncoder = device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginComputePass();
-    passEncoder.setPipeline(pipeline);
-    passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(verticesAtY1.length);
-    passEncoder.end();
-
-    // Submit the command buffer
-    const commandBuffer = commandEncoder.finish();
-    device.queue.submit([commandBuffer]);
-
-    // Read results
-    const resultReadBuffer = device.createBuffer({
-      size: resultBuffer.size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
-
-    commandEncoder.copyBufferToBuffer(
-      resultBuffer,
-      0,
-      resultReadBuffer,
-      0,
-      resultBuffer.size,
-    );
-    device.queue.submit([commandEncoder.finish()]);
-
-    await resultReadBuffer.mapAsync(GPUMapMode.READ);
-    const resultArray = new Uint32Array(resultReadBuffer.getMappedRange());
-    console.log('Nearest vertices indices:', resultArray);
-
-    resultReadBuffer.unmap();
-  }
 
   private device: GPUDevice | null = null;
 
@@ -157,108 +57,49 @@ export class WebGpuOpsService {
     return optimalWorkgroupSize;
   }
 
-  public async runComputeShader(workgroupSize: number): Promise<Float32Array> {
-    if (!this.device) {
-      throw new Error('GPU device not initialized.');
-    }
-
-    const shaderCode = `
-      @group(0) @binding(0) var<storage, read_write> buffer : array<f32>;
-
-      @compute @workgroup_size(${workgroupSize})
-      fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-        let index = id.x;
-        buffer[index] = f32(index) * 2.0;
-      }
-    `;
-
-    const shaderModule = this.device.createShaderModule({
-      code: shaderCode,
-    });
-
-    const pipeline = this.device.createComputePipeline({
-      layout: 'auto',
-      compute: {
-        module: shaderModule,
-        entryPoint: 'main',
-      },
-    });
-
-    const data = new Float32Array(64);
-    const buffer = this.device.createBuffer({
-      size: data.byteLength,
-      usage:
-        GPUBufferUsage.STORAGE |
-        GPUBufferUsage.COPY_SRC |
-        GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
-    });
-
-    new Float32Array(buffer.getMappedRange()).set(data);
-    buffer.unmap();
-
-    const bindGroup = this.device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: buffer,
-          },
-        },
-      ],
-    });
-
-    const commandEncoder = this.device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginComputePass();
-    passEncoder.setPipeline(pipeline);
-    passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(1); // Adjust based on workload
-    passEncoder.end();
-
-    this.device.queue.submit([commandEncoder.finish()]);
-
-    // Read back the results
-    const readBuffer = this.device.createBuffer({
-      size: buffer.size,
-      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-    });
-
-    commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, buffer.size);
-    this.device.queue.submit([commandEncoder.finish()]);
-
-    await readBuffer.mapAsync(GPUMapMode.READ);
-    const resultArray = new Float32Array(readBuffer.getMappedRange());
-
-    return resultArray;
-  }
-
   convertToShaderFormat(
     points: (PathPosition | THREE.Vector2)[],
+    includeVertexIndex: boolean,
   ): Float32Array {
     const flatArray: number[] = [];
 
     points.forEach((point) => {
-      flatArray.push(point.x, 1, point.y); // swap y to z and set y to 1
+      if (includeVertexIndex) {
+        flatArray.push(point.x, 1, point.y, 0); // swap y to z and set y to 1
+      } else {
+        flatArray.push(point.x, 1, point.y); // swap y to z and set y to 1
+      }
     });
 
     return new Float32Array(flatArray);
   }
 
-  createBufferFromPoints(points: (PathPosition | THREE.Vector2)[]): GPUBuffer {
+  createBufferFromPoints(
+    points: (PathPosition | THREE.Vector2)[],
+    includeVertexIndex: boolean,
+    mode: number,
+    mapAtCreation: boolean,
+  ): GPUBuffer {
     if (!this.device) {
       throw new Error('GPU device not initialized.');
     }
 
-    const flatArray = this.convertToShaderFormat(points);
+    const flatArray = this.convertToShaderFormat(points, includeVertexIndex);
     const buffer = this.device.createBuffer({
       size: flatArray.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      mappedAtCreation: true,
+      usage: mode,
+      mappedAtCreation: mapAtCreation,
     });
 
-    new Float32Array(buffer.getMappedRange()).set(flatArray);
-    buffer.unmap();
+    // If mappedAtCreation is true, you can immediately access the buffer to write data
+    if (mapAtCreation) {
+      const arrayBuffer = buffer.getMappedRange(); // Get the mapped memory
+      const typedArray = new Float32Array(arrayBuffer);
+      typedArray.set(flatArray); // Write some data into the buffer
+
+      // Unmap the buffer so it can be used by the GPU
+      buffer.unmap();
+    }
 
     return buffer;
   }
@@ -298,53 +139,136 @@ export class WebGpuOpsService {
     return vec3Array;
   }
 
-  async runComputeShaderWithDynamicWorkgroupSize(
-    workgroupSize: number,
-    pointsA: (PathPosition | THREE.Vector2)[],
-    pointsB: (PathPosition | THREE.Vector2)[],
-  ): Promise<[number, number, number][]> {
+  public getBinaryFloatToInt(wrongFloat: number): number {
+    // Create an ArrayBuffer with enough bytes to store a float32 (4 bytes)
+    const buffer = new ArrayBuffer(4);
+
+    // Create a DataView to manipulate the ArrayBuffer
+    const view = new DataView(buffer);
+
+    // Write the float value into the buffer as a float32
+    view.setFloat32(0, wrongFloat, this.checkEndianness()); // true for little-endian, false for big-endian
+
+    // Read the buffer as a 32-bit integer
+    const intRepresentation = view.getInt32(0, this.checkEndianness()); // true for little-endian, false for big-endian
+
+    return intRepresentation;
+  }
+
+  public checkEndianness(): boolean {
+    // Create an ArrayBuffer with 4 bytes (32 bits)
+    const buffer = new ArrayBuffer(4);
+
+    // Create a DataView to manipulate the ArrayBuffer
+    const view = new DataView(buffer);
+
+    // Set an int32 value of 1
+    view.setUint32(0, 0x01020304);
+
+    // Check the first byte to determine endianness
+    if (view.getUint8(0) === 0x01) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  public createMeshFromShaderOutput(
+    pointsA: [number, number, number][],
+    pointsB: [number, number, number][],
+    updatedPointsA: number[],
+  ): geom3.Geom3 {
+    console.log(pointsA);
+    console.log(pointsB);
+    console.log(updatedPointsA);
+    const polygons = [];
+    const numberArray = Array.from(updatedPointsA);
+    console.log(numberArray[4]);
+    for (let i = 0; i < pointsA.length; i++) {
+      const A_prime: Vec3 = [
+        updatedPointsA[i * 4],
+        updatedPointsA[i * 4 + 1],
+        updatedPointsA[i * 4 + 2],
+      ];
+      const nearestIndex = this.getBinaryFloatToInt(updatedPointsA[i * 4 + 3]);
+      const B = pointsB[nearestIndex];
+
+      // Find adjacent vertices B_adj and A'_adj
+      const B_adj = pointsB[(nearestIndex + 1) % pointsB.length];
+      const A_adj: Vec3 | null =
+        i < pointsA.length - 1
+          ? [
+              updatedPointsA[(i + 1) * 4],
+              updatedPointsA[(i + 1) * 4 + 1],
+              updatedPointsA[(i + 1) * 4 + 2],
+            ]
+          : null;
+      // Create two triangles or a quadrilateral
+      if (A_adj !== null) {
+        // Quadrilateral
+        console.log(A_prime);
+        console.log(B);
+        console.log(B_adj);
+        console.log(A_adj);
+        polygons.push(
+          jscad.geometries.poly3.fromPoints([A_prime, B, B_adj, A_adj]),
+        );
+      } else {
+        // Two triangles
+        polygons.push(jscad.geometries.poly3.fromPoints([A_prime, B, B_adj]));
+      }
+    }
+
+    return jscad.geometries.geom3.create(polygons);
+  }
+
+  async runComputeShaderAndCreateGeometry(
+    pointsA: (PathPosition | THREE.Vec2)[],
+    pointsB: (PathPosition | THREE.Vec2)[],
+  ): Promise<geom3.Geom3> {
     if (!this.device) {
       throw new Error('GPU device not initialized.');
     }
 
-    // Shader code as a string, with a placeholder for workgroup size
+    const workgroupSize = await this.selectOptimalWorkgroupSize();
     const shaderCode = `
-      struct Vertex {
-        position : vec3<f32>;
-      };
+  struct Vertex {
+  position : vec3<f32>,
+  nearestVertex : u32,
+};
 
-      @group(0) @binding(0) var<storage, read> pointsA : array<Vertex>;
-      @group(0) @binding(1) var<storage, read> pointsB : array<Vertex>;
-      @group(0) @binding(2) var<storage, read_write> updatedPointsA : array<Vertex>;
+@group(0) @binding(0) var<storage, read> pointsA : array<Vertex>;
+@group(0) @binding(1) var<storage, read> pointsB : array<Vertex>;
+@group(0) @binding(2) var<storage, read_write> updatedPointsA : array<Vertex>;
 
-      @compute @workgroup_size(${workgroupSize})
-      fn main(@builtin(global_invocation_id) id : vec3<u32>) {
-        let index = id.x;
-        let pointA = pointsA[index].position;
+@compute @workgroup_size(${workgroupSize})
+fn main(@builtin(global_invocation_id) id : vec3<u32>) {
+  let index = id.x;
+  let pointA = pointsA[index].position;
 
-        var nearestIndex : u32 = 0;
-        var minDistance : f32 = 1e10;
+  var nearestIndex : u32 = 0;
+  var minDistance : f32 = 1e10;
 
-        for (var i = 0u; i < arrayLength(&pointsB); i = i + 1u) {
-          let pointB = pointsB[i].position;
-          let distance = distance(vec2<f32>(pointA.x, pointA.z), vec2<f32>(pointB.x, pointB.z));
+  for (var i = 0u; i < arrayLength(&pointsB); i = i + 1u) {
+      let pointB = pointsB[i].position;
 
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearestIndex = i;
-          }
-        }
+      // Calculate the distance in the xz plane
+      let distance = distance(vec2<f32>(pointA.x, pointA.z), vec2<f32>(pointB.x, pointB.z));
 
-        let newY = 1.0 + minDistance;
-        updatedPointsA[index] = Vertex(vec3<f32>(pointA.x, newY, pointA.z));
+      if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = i;
       }
-    `;
+  }
 
-    // Compile the shader with the updated workgroup size
-    const shaderModule = this.device.createShaderModule({
-      code: shaderCode,
-    });
+  // Assign the new y value based on the distance to the nearest point in B
+  let newY = 1.0 - minDistance;
 
+  // Update the vertex with the new y value and the nearest vertex index
+  updatedPointsA[index] = Vertex(vec3<f32>(pointA.x, newY, pointA.z), nearestIndex);
+}`;
+
+    const shaderModule = this.device.createShaderModule({ code: shaderCode });
     const pipeline = this.device.createComputePipeline({
       layout: 'auto',
       compute: {
@@ -353,54 +277,50 @@ export class WebGpuOpsService {
       },
     });
 
-    const bufferA = this.createBufferFromPoints(pointsA);
-    const bufferB = this.createBufferFromPoints(pointsB);
+    const usageA = GPUBufferUsage.STORAGE;
+    const usageB = GPUBufferUsage.STORAGE;
+    const usageC = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC;
+
+    const bufferA = this.createBufferFromPoints(pointsA, true, usageA, true);
+    const bufferB = this.createBufferFromPoints(pointsB, false, usageB, true);
+    const bufferC = this.createBufferFromPoints(pointsA, true, usageC, false);
 
     const bindGroup = this.device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: bufferA,
-          },
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: bufferB,
-          },
-        },
-        {
-          binding: 2,
-          resource: {
-            buffer: bufferA, // Writing updated positions back to bufferA
-          },
-        },
+        { binding: 0, resource: { buffer: bufferA } },
+        { binding: 1, resource: { buffer: bufferB } },
+        { binding: 2, resource: { buffer: bufferC } },
       ],
     });
 
-    const commandEncoder = this.device.createCommandEncoder();
-    const passEncoder = commandEncoder.beginComputePass();
+    const computeEncoder = this.device.createCommandEncoder();
+    const passEncoder = computeEncoder.beginComputePass();
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, bindGroup);
-    passEncoder.dispatchWorkgroups(Math.ceil(pointsA.length / workgroupSize)); // Adjust based on workload
+    passEncoder.dispatchWorkgroups(Math.ceil(pointsA.length / workgroupSize));
     passEncoder.end();
 
-    this.device.queue.submit([commandEncoder.finish()]);
-
-    // Read back the results
+    this.device.queue.submit([computeEncoder.finish()]);
     const readBuffer = this.device.createBuffer({
-      size: bufferA.size,
+      size: bufferC.size,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
-    commandEncoder.copyBufferToBuffer(bufferA, 0, readBuffer, 0, bufferA.size);
-    this.device.queue.submit([commandEncoder.finish()]);
+    const copyEncoder = this.device.createCommandEncoder();
+    copyEncoder.copyBufferToBuffer(bufferC, 0, readBuffer, 0, bufferC.size);
+    this.device.queue.submit([copyEncoder.finish()]);
 
     await readBuffer.mapAsync(GPUMapMode.READ);
     const resultArray = new Float32Array(readBuffer.getMappedRange());
-    const resultVec3Array = this.convertBufferToVec3Array(resultArray);
-    return resultVec3Array;
+    console.log(resultArray); // Check if it contains the expected values
+    const resultCopy = Array.from(resultArray);
+    readBuffer.unmap();
+
+    return this.createMeshFromShaderOutput(
+      this.convertToVec3Array(pointsA),
+      this.convertToVec3Array(pointsB),
+      resultCopy,
+    );
   }
 }

@@ -12,7 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import * as THREE from 'three';
 //import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
-import { SpellTracker } from '../../utils/Object-Generation';
+import { SpellTracker } from '../../utils/Object-Gen-Combo';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // import Stats from 'three/examples/jsm/libs/stats.module';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
@@ -351,7 +351,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       });
       worker.onmessage = ({ data }) => {
         console.log('Adding new object');
-        this.scene.add(this.objectLoader.parse(data));
+        console.log(data);
+        //this.scene.add(this.objectLoader.parse(data));
       };
       worker.postMessage({
         eD: this.editorData,
@@ -471,20 +472,21 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   }
 
   private async calculate3DText(
-    interior: THREE.Vec2[],
-    exterior: THREE.Vec2[],
+    interior: (THREE.Vec2 | PathPosition)[],
+    exterior: (THREE.Vec2 | PathPosition)[],
   ) {
     try {
       await this.webGpuOpsService.initialize();
-      const workgroupSize =
-        await this.webGpuOpsService.selectOptimalWorkgroupSize();
-      const vectors =
-        await this.webGpuOpsService.runComputeShaderWithDynamicWorkgroupSize(
-          workgroupSize,
-          interior,
-          exterior,
-        );
-      console.log('Converted Vectors:', vectors);
+      const geometry = this.webGpuOpsService.runComputeShaderAndCreateGeometry(
+        interior,
+        exterior,
+      );
+      geometry.then((result) => {
+        //convert to stl then to three and add to scene
+        this.tracker.convertJSCADToThree(result, 0xffffff).then((mesh) => {
+          this.scene.add(mesh);
+        });
+      });
     } catch (error) {
       console.error(error);
     }
@@ -662,7 +664,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     mesh.position.y = yTranslate;
     mesh.updateMatrix();
     const meshJSON = mesh.toJSON();
-    console.log(meshJSON);
+    //console.log(meshJSON);
     return meshJSON;
   }
 
@@ -691,7 +693,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       const vBounds = this.getVoronoiBounds(char);
       const voronoi = delaunay.voronoi(vBounds);
       const svgPath = voronoi.render();
-      console.log(svgPath);
+      //console.log(svgPath);
       const svgPaths = CommandHandler.splitPath(svgPath, vBounds, shape);
       svgPaths.forEach((path) => {
         //  console.log(path);
@@ -701,6 +703,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           .style('stroke', CommandHandler.getRandomColor())
           .style('stroke-width', 0.05);
       });
+      const voronoiPoints = this.parsePathData(svgPaths.join());
+      this.calculate3DText(voronoiPoints, [
+        ...shape.shape,
+        ...shape.holes.flat(),
+      ]);
     }
     //console.log(moduleInfo.data);
     zoomableGroup

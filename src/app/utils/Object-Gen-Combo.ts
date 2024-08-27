@@ -177,6 +177,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     return layer1;
   }
 
+  /*
   private convertThreeToJSCADSync(model: THREE.Mesh): Geom3 {
     const meshSTL = this.threeExporter.parse(model, {
       binary: true,
@@ -207,7 +208,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
       threeModel,
       new THREE.MeshStandardMaterial({ color: modelColor }),
     );
-  }
+  }*/
 
   private async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
     const stlString = this.threeExporter.parse(model, { binary: true });
@@ -220,7 +221,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     return jscGeom as Geom3;
   }
 
-  private async convertJSCADToThree(
+  public async convertJSCADToThree(
     model: Geom3,
     modelColor: number,
   ): Promise<THREE.Mesh> {

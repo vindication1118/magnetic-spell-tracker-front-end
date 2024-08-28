@@ -224,6 +224,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
   public async convertJSCADToThree(
     model: Geom3,
     modelColor: number,
+    debug: boolean = false,
   ): Promise<THREE.Mesh> {
     const stlData = serialize.serialize({ binary: true }, model);
     //console.log(stlArray);
@@ -231,6 +232,38 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     const blob = new Blob(stlData);
     const arrayBuffer = await blob.arrayBuffer();
     const geometry = this.threeLoader.parse(arrayBuffer);
+    if (debug) {
+      // Loop through the faces and assign a random color
+      const color = new THREE.Color();
+      const positionAttribute = geometry.getAttribute('position');
+      const colors = [];
+
+      for (let i = 0; i < positionAttribute.count; i += 3) {
+        // Generate a random color
+        const min = 0xaaaaaa;
+        const max = 0xeeeeee;
+        const randomColor = Math.random() * (max - min) + min;
+        color.set(randomColor);
+
+        // Assign the color to the three vertices of the face
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+      }
+
+      // Add the color attribute to the geometry
+      geometry.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(colors, 3),
+      );
+
+      // Create a material that supports vertex colors
+      const material = new THREE.MeshBasicMaterial({ vertexColors: true });
+
+      // Create the mesh
+      const mesh = new THREE.Mesh(geometry, material);
+      return mesh;
+    }
     return new THREE.Mesh(
       geometry,
       new THREE.MeshStandardMaterial({ color: modelColor }),

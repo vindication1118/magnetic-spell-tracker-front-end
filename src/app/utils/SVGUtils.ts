@@ -592,32 +592,36 @@ export class CommandHandler {
     return jscad.booleans.union(...snakes);
   }
 
-  /*
-// Example usage
-const outerPolygon: PathPosition[] = [
-    { x: 0, y: 0 },
-    { x: 10, y: 0 },
-    { x: 10, y: 10 },
-    { x: 0, y: 10 }
-];
-const holes: PathPosition[][] = [
-    [
-        { x: 2, y: 2 },
-        { x: 4, y: 2 },
-        { x: 4, y: 4 },
-        { x: 2, y: 4 }
-    ],
-    [
-        { x: 6, y: 6 },
-        { x: 8, y: 6 },
-        { x: 8, y: 8 },
-        { x: 6, y: 8 }
-    ]
-];
+  public static simplifyPoints(
+    points: (PathPosition | THREE.Vector2)[],
+  ): THREE.Vector2[] | PathPosition[] {
+    if (points.length < 3) return points; // Not enough points to simplify
 
-const lineSegment: LineSegment = { p0: { x: 3, y: 3 }, p1: { x: 7, y: 7 } };
+    const simplifiedPoints: (THREE.Vector2 | PathPosition)[] = [];
 
-const contained: boolean = lineSegmentInPolygonWithHoles(lineSegment, outerPolygon, holes);
+    simplifiedPoints.push(points[0]); // Start with the first point
 
-console.log('Segment is contained within the polygon with holes:', contained); */
+    for (let i = 1; i < points.length - 1; i++) {
+      const p1 = points[i - 1];
+      const p2 = points[i];
+      const p3 = points[i + 1];
+
+      // Calculate vectors
+      const v1 = new THREE.Vector2()
+        .subVectors(p2 as THREE.Vector2, p1 as THREE.Vector2)
+        .normalize();
+      const v2 = new THREE.Vector2()
+        .subVectors(p3 as THREE.Vector2, p2 as THREE.Vector2)
+        .normalize();
+
+      // Check if the vectors are aligned (angle between them is 0)
+      if (!v1.equals(v2)) {
+        simplifiedPoints.push(p2); // If not aligned, keep this point
+      }
+    }
+
+    simplifiedPoints.push(points[points.length - 1]); // Always include the last point
+
+    return simplifiedPoints;
+  }
 }

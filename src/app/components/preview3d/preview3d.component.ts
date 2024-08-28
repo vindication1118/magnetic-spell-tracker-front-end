@@ -483,9 +483,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       );
       geometry.then((result) => {
         //convert to stl then to three and add to scene
-        this.tracker.convertJSCADToThree(result, 0xffffff).then((mesh) => {
-          this.scene.add(mesh);
-        });
+        this.tracker
+          .convertJSCADToThree(
+            result,
+            CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
+            true,
+          )
+          .then((mesh) => {
+            this.scene.add(mesh);
+          });
       });
     } catch (error) {
       console.error(error);
@@ -703,10 +709,12 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           .style('stroke', CommandHandler.getRandomColor())
           .style('stroke-width', 0.05);
       });
-      const voronoiPoints = this.parsePathData(svgPaths.join());
+      const voronoiPoints = CommandHandler.simplifyPoints(
+        this.parsePathData(svgPaths.join()),
+      );
       this.calculate3DText(voronoiPoints, [
-        ...shape.shape,
-        ...shape.holes.flat(),
+        ...CommandHandler.simplifyPoints(shape.shape),
+        ...CommandHandler.simplifyPoints(shape.holes.flat()),
       ]);
     }
     //console.log(moduleInfo.data);

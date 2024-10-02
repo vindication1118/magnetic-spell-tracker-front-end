@@ -1,3 +1,4 @@
+import { ManifoldWasmService } from './../services/manifold-wasm.service';
 import { TrackerModule, TextModule } from '../interfaces/tracker-module';
 import { CSG } from './CSGMesh';
 import * as THREE from 'three';
@@ -11,8 +12,24 @@ import fontData from 'three/examples/fonts/droid/droid_sans_regular.typeface.jso
 import { ElementRef } from '@angular/core';
 import * as deserialize from '@jscad/stl-deserializer';
 import * as serialize from '@jscad/stl-serializer';
-import { booleans } from '@jscad/modeling';
+import { booleans } from '@jscad/modeling/src/index';
 import { Geom3 } from '@jscad/modeling/src/geometries/types';
+import { PathPosition } from '../interfaces/path-position';
+//import { CommandHandler } from './SVGUtils';
+import { WebGpuOps } from './web-gpu-ops';
+import { CharShape } from '../interfaces/char-shape';
+//import { lengths } from '@jscad/modeling/src/curves/bezier';
+import {
+  Manifold,
+  Mat4,
+  //Mesh,
+  Polygons,
+  SimplePolygon,
+  Vec2,
+} from 'manifold-3d';
+import { FrenetFrame } from '../interfaces/frenet-frame';
+
+//import { triangle } from '@jscad/modeling/src/primitives';
 
 class SpellTracker {
   public editorData!: EditorData;
@@ -21,6 +38,7 @@ class SpellTracker {
   private objectLoader = new THREE.ObjectLoader();
   private threeExporter = new STLExporter();
   private threeLoader = new STLLoader();
+  private manifold!: ManifoldWasmService;
 
   constructor(
     editorData: EditorData,
@@ -37,6 +55,526 @@ class SpellTracker {
       (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
       this.editorData.textDepth +
       1;
+  }
+
+  public async getAllExtrusions(
+    maniServe: ManifoldWasmService,
+    shapes: THREE.Shape[],
+    size: number,
+  ): Promise<Manifold[]> {
+    this.manifold = maniServe;
+    const manifolds: Manifold[] = [];
+    for (const shape of shapes) {
+      const manifold = await this.extrudeManifoldTriangles(shape, size);
+      manifolds.push(manifold);
+    }
+    return manifolds;
+  }
+
+  public async extrudeManifoldTriangles(
+    shape: THREE.Shape,
+    size: number,
+  ): Promise<Manifold> {
+    await this.manifold.init();
+    //const catMull2d = this.getCatMull2dFromShape(shape);
+    const catMull3d = this.getCatMull3dFromShape(shape);
+    const manifolds: Manifold[][] = [];
+    for (const curve of catMull3d) {
+      const manifold = await this.extrudeUsingFrenetFrames(curve, size);
+      manifolds.push(manifold);
+    }
+    /*console.log(catMull2d);
+    const lengths: number[][] = this.getLengthsNested(catMull2d);
+    console.log(lengths);
+    const manifoldsNested: { mani: Manifold; length: number }[][] =
+      await this.getExtrudedManifoldTriangles(lengths, size);
+
+    if (scene !== undefined) {
+      for (const manifolds of manifoldsNested) {
+        for (const manifold of manifolds) {
+          console.log('Trying to add to the scene');
+          scene.add(
+            this.manifold.manifold2ThreeMesh(
+              manifold.mani,
+              new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true }),
+            ),
+          );
+        }
+        for (const catmulls of catMull3d) {
+          console.log('Trying to add to the scene');
+
+          const geometry = new THREE.BufferGeometry().setFromPoints(
+            catmulls.getPoints(100),
+          );
+
+          const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+
+          // Create the final object to add to the scene
+          const curveObject = new THREE.Line(geometry, material);
+          scene.add(curveObject);
+        }
+      }
+    }
+    //transform extruded triangles, done in place
+    this.transformExtrudedTriangles(catMull2d, manifoldsNested);
+    //union them all together
+    const finalManifold = this.unionTriangles(manifoldsNested);
+    return finalManifold; */
+    const maniFinalGroup: Manifold[] = [];
+    for (let i = 0; i < manifolds.length; i++) {
+      let maniFinal = manifolds[i][0];
+      for (let j = 1; j < manifolds[i].length; j++) {
+        maniFinal = this.manifold.csgUnion(maniFinal, manifolds[i][j]);
+      }
+      maniFinalGroup.push(maniFinal);
+    }
+
+    let combinedShapeHolesManifold = maniFinalGroup[0];
+    for (let i = 1; i < maniFinalGroup.length; i++) {
+      combinedShapeHolesManifold = this.manifold.csgUnion(
+        combinedShapeHolesManifold,
+        maniFinalGroup[i],
+      );
+    }
+
+    return combinedShapeHolesManifold;
+  }
+
+  public async extrudeUsingFrenetFrames(
+    catmull: THREE.CatmullRomCurve3,
+    triangleHeight: number,
+  ): Promise<Manifold[]> {
+    const frames = catmull.computeFrenetFrames(100, true);
+    const points = catmull.getPoints(100);
+    const framesAndPoints: FrenetFrame = { ...frames, points: points };
+    return await this.createExtrudedMeshWithManifold(
+      framesAndPoints,
+      triangleHeight,
+    );
+  }
+
+  public async transformTriangle(
+    frenetFrames: FrenetFrame,
+    frameIndex: number,
+    triangleHeight: number,
+  ): Promise<Manifold> {
+    await this.manifold.init();
+    const tangent = frenetFrames.tangents[frameIndex];
+    const normal = frenetFrames.normals[frameIndex];
+    const binormal = frenetFrames.binormals[frameIndex];
+
+    const myCubeToTriPrism = this.manifold.wasm.Manifold.cube(
+      [2 * triangleHeight, triangleHeight, tangent.length()],
+      true,
+    );
+    const cubeSideLen = 2 * triangleHeight;
+    const helperCube1 = this.manifold.wasm.Manifold.cube(cubeSideLen, true);
+    const helperCube2 = this.manifold.wasm.Manifold.cube(cubeSideLen, true);
+    const hc1rot = helperCube1.rotate([0, 0, 45]);
+    const hc2rot = helperCube2.rotate([0, 0, 45]);
+    //center of cube starts at (0, 0). Triangle leg midpoint is at (+- triangleHeight / 2, 0)
+    //new center of the cube has to be 2 away from midpoint at right angle to legs, so up cubeSideLen/sqrt(2)
+    //and left or right cubeSideLen / sqrt(2)
+    const xTranslate = triangleHeight / 2 + triangleHeight / Math.sqrt(2);
+    const yTranslate = triangleHeight / Math.sqrt(2); //might be cubeSideLen not tHeight
+    const hc1rottrans = hc1rot.translate([-xTranslate, yTranslate, 0]);
+    const hc2rottrans = hc2rot.translate([xTranslate, yTranslate, 0]);
+
+    let myTriPrism = this.manifold.csgSubtraction(
+      myCubeToTriPrism,
+      hc1rottrans,
+    );
+    myTriPrism = this.manifold.csgSubtraction(myTriPrism, hc2rottrans);
+    const cone1 = this.manifold.wasm.Manifold.cylinder(1, 1, 0, 32, true);
+    const cone2 = this.manifold.wasm.Manifold.cylinder(1, 1, 0, 32, true);
+    const c1rot = cone1.rotate([-90, 0, 0]);
+    const c2rot = cone2.rotate([-90, 0, 0]);
+    const c1trans = c1rot.translate([0, 0, -tangent.length() / 2]);
+    const c2trans = c2rot.translate([0, 0, tangent.length() / 2]);
+    let triMani = this.manifold.csgUnion(myTriPrism, c1trans);
+    triMani = this.manifold.csgUnion(triMani, c2trans);
+
+    // Create transformation matrix from the Frenet frame
+
+    const transformationMatrix: Mat4 = [
+      tangent.x,
+      tangent.y,
+      tangent.z,
+      0,
+      normal.x,
+      normal.y,
+      normal.z,
+      0,
+      binormal.x,
+      binormal.y,
+      binormal.z,
+      0,
+      0,
+      0,
+      0,
+      1,
+    ];
+
+    // Apply the transformation to each vertex of the initial triangle
+    let transformedTriangle = triMani.transform(transformationMatrix);
+    transformedTriangle = transformedTriangle.rotate([0, 0, 90]);
+    transformedTriangle = transformedTriangle.translate([
+      frenetFrames.points[frameIndex].x,
+      frenetFrames.points[frameIndex].y,
+      frenetFrames.points[frameIndex].z,
+    ]);
+
+    return transformedTriangle;
+  }
+
+  // Function to generate the Manifold mesh using Frenet frames and manifold.wasm
+  public async createExtrudedMeshWithManifold(
+    frenetFrames: FrenetFrame,
+    triangleHeight: number,
+  ): Promise<Manifold[]> {
+    const triangles = [];
+
+    for (let i = 0; i < frenetFrames.tangents.length; i++) {
+      const transformedTriangleManifold = await this.transformTriangle(
+        frenetFrames,
+        i,
+        triangleHeight,
+      );
+      triangles.push(transformedTriangleManifold);
+    }
+    let trianglesManifold = triangles[0];
+    for (let j = 1; j < triangles.length; j++) {
+      trianglesManifold = this.manifold.csgUnion(
+        trianglesManifold,
+        triangles[j],
+      );
+    }
+    return triangles;
+  }
+
+  public unionTriangles(
+    manifoldsNested: { mani: Manifold; length: number }[][],
+  ): Manifold {
+    const allUnioned: Manifold[] = [];
+    for (const manifolds of manifoldsNested) {
+      let unioned: Manifold = manifolds[0].mani;
+      for (let i = 1; i < manifolds.length; i++) {
+        unioned = this.manifold.csgUnion(unioned, manifolds[i].mani);
+      }
+      allUnioned.push(unioned);
+    }
+    let finalManifold = allUnioned[0];
+    for (let i = 1; i < allUnioned.length; i++) {
+      finalManifold = this.manifold.csgUnion(finalManifold, allUnioned[i]);
+    }
+    return finalManifold;
+  }
+
+  public transformExtrudedTriangles(
+    catMull2d: THREE.Vector2[][],
+    manifoldsNested: { mani: Manifold; length: number }[][],
+  ) {
+    const unitVecX = new THREE.Vector2(1, 0);
+    catMull2d.forEach((catMull, index1) => {
+      catMull.forEach((point, index2) => {
+        let vecDiff: THREE.Vector2;
+        if (index2 < catMull.length - 1) {
+          vecDiff = this.vecDiff(point, catMull[index2 + 1]);
+        } else {
+          vecDiff = this.vecDiff(point, catMull[0]);
+        }
+        const angleRads = this.signed2DAngleTo(unitVecX, vecDiff);
+        const angleDeg = THREE.MathUtils.radToDeg(angleRads);
+        console.log(angleDeg);
+        const len = manifoldsNested[index1][index2].length;
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.translate([0, (-len * 3) / 2, 0]);
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.rotate([90, 0, 0]);
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.rotate([0, 0, angleDeg + 90]);
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.translate([point.x, point.y, 0]);
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.rotate([-90, 0, 0]);
+        manifoldsNested[index1][index2].mani = manifoldsNested[index1][
+          index2
+        ].mani.scale([1, -1, 1]);
+      });
+    });
+  }
+
+  vecDiff(u: THREE.Vector2, v: THREE.Vector2): THREE.Vector2 {
+    const diffX = v.x - u.x;
+    const diffY = v.y - u.y;
+    return new THREE.Vector2(diffX, diffY);
+  }
+
+  getNormal(u: THREE.Vector3, v: THREE.Vector3): THREE.Vector3 {
+    return new THREE.Plane().setFromCoplanarPoints(new THREE.Vector3(), u, v)
+      .normal;
+  }
+
+  public signed2DAngleTo(u: THREE.Vector2, v: THREE.Vector2): number {
+    // Get the signed angle between u and v, in the range [-pi, pi]
+    const u3 = new THREE.Vector3(u.x, u.y, 0);
+    const v3 = new THREE.Vector3(v.x, v.y, 0);
+    const angle = u3.angleTo(v3);
+    const normal = this.getNormal(u3, v3);
+    return normal.z * angle;
+  }
+
+  public signed3DAngleTo(u: THREE.Vector3, v: THREE.Vector3): number {
+    // Get the signed angle between u and v, in the range [-pi, pi]
+    const angle = u.angleTo(v);
+    const normal = this.getNormal(u, v);
+    return normal.z * angle;
+  }
+
+  public async getExtrudedManifoldTriangles(
+    lengthsNested: number[][],
+    size: number,
+  ): Promise<{ mani: Manifold; length: number }[][]> {
+    const manifoldsNested: { mani: Manifold; length: number }[][] = [];
+    for (const lenArr of lengthsNested) {
+      const manifolds: { mani: Manifold; length: number }[] = [];
+      for (const len of lenArr) {
+        const mani = await this.extrudeManifoldTriangle(len, size);
+        manifolds.push({ mani: mani, length: len });
+      }
+      manifoldsNested.push(manifolds);
+    }
+    return manifoldsNested;
+  }
+
+  public async extrudeManifoldTriangle(
+    length: number,
+    size: number,
+  ): Promise<Manifold> {
+    await this.manifold.init();
+    //const wasm = this.manifold.wasm;
+    const pt1: Vec2 = [0, 0];
+    const pt2: Vec2 = [size / 2, -size];
+    const pt3: Vec2 = [-size / 2, -size];
+    const pt4: Vec2 = [0, 0];
+    const trianglePoints: SimplePolygon = [pt1, pt2, pt3, pt4];
+    const triangle: Polygons = [trianglePoints];
+    const triangleCrossSection = new this.manifold.wasm.CrossSection(triangle);
+    console.log(length);
+    console.log(triangleCrossSection);
+    const prism = this.extrudeThreeTriangle(size, length * 3);
+    const prismManifold = this.manifold.threeMesh2manifold(prism);
+    console.log(
+      this.manifold.manifold2ThreeMesh(
+        prismManifold,
+        new THREE.MeshStandardMaterial({ color: 0xffffff }),
+      ),
+    );
+    return prismManifold;
+  }
+
+  public extrudeThreeTriangle(size: number, height: number): THREE.Mesh {
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.lineTo(size / 2, -size);
+    shape.lineTo(-size / 2, -size);
+    shape.lineTo(0, 0);
+
+    const extrudeSettings = {
+      steps: 2,
+      depth: height,
+      bevelEnabled: false,
+    };
+
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const mesh = new THREE.Mesh(geometry, material);
+    return mesh;
+  }
+
+  public getCatMull2dFromShape(shape: THREE.Shape): THREE.Vector2[][] {
+    const shapePoints = this.addExtraPoints(shape.getPoints());
+    const shapeHolePoints = shape.getPointsHoles(12).map((val) => {
+      return this.addExtraPoints(val);
+    });
+    const shapeHoles = [shapePoints, ...shapeHolePoints];
+    const shapeHoles3 = this.vec2ToVec3KeepXY(shapeHoles);
+    const catMull = this.catMullNestedPoints(shapeHoles3);
+    const catMull2d = this.vec3FlatToVec2(catMull);
+    return catMull2d;
+  }
+
+  public getCatMull3dFromShape(shape: THREE.Shape): THREE.CatmullRomCurve3[] {
+    const shapePoints = this.addExtraPoints(shape.getPoints());
+    const shapeHolePoints = shape.getPointsHoles(12).map((val) => {
+      return this.addExtraPoints(val).reverse();
+    });
+    const shapeHoles = [shapePoints, ...shapeHolePoints];
+    const shapeHoles3 = this.vec2ToVec3KeepXY(shapeHoles);
+    const catMull = this.catMullNestedCurve(shapeHoles3);
+    return catMull;
+  }
+
+  public addExtraPoints(
+    points: THREE.Vector2[],
+    density = 10,
+  ): THREE.Vector2[] {
+    const newPoints: THREE.Vector2[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+
+      newPoints.push(p1); // Add the original point
+
+      // Determine the number of segments based on density
+      const distance = p1.distanceTo(p2);
+      const segments = Math.floor(distance / density);
+
+      // Interpolate points along the straight line segment
+      for (let j = 1; j < segments; j++) {
+        const t = j / segments;
+        const x = THREE.MathUtils.lerp(p1.x, p2.x, t);
+        const y = THREE.MathUtils.lerp(p1.y, p2.y, t);
+        newPoints.push(new THREE.Vector2(x, y));
+      }
+    }
+    newPoints.push(points[points.length - 1]); // Add the last point
+    return newPoints;
+  }
+
+  public getLengthsNested(shapes: THREE.Vector2[][]): number[][] {
+    const lengthsNested: number[][] = [];
+    for (const shape of shapes) {
+      const lenArr = this.getLengths(shape);
+      lengthsNested.push(lenArr);
+    }
+    return lengthsNested;
+  }
+
+  public vec2ToVec3KeepXY(shapesPoints: THREE.Vector2[][]): THREE.Vector3[][] {
+    const shapesPoints3: THREE.Vector3[][] = [];
+    for (const shapePoints of shapesPoints) {
+      const newShapePoints: THREE.Vector3[] = [];
+      for (const point of shapePoints) {
+        const newPoint = new THREE.Vector3(point.x, point.y, 0);
+        newShapePoints.push(newPoint);
+      }
+      shapesPoints3.push(newShapePoints);
+    }
+    return shapesPoints3;
+  }
+
+  public catMullNestedPoints(
+    shapesPoints: THREE.Vector3[][],
+  ): THREE.Vector3[][] {
+    const catMull: THREE.CatmullRomCurve3[] = [];
+    for (const shapePoints of shapesPoints) {
+      const catMullCurve = new THREE.CatmullRomCurve3(shapePoints, true);
+      catMull.push(catMullCurve);
+    }
+    const catMullPoints: THREE.Vector3[][] = [];
+    for (const curve of catMull) {
+      const points = this.extractCatmullPoints(curve, 100);
+      catMullPoints.push(points);
+    }
+    return catMullPoints;
+  }
+
+  public catMullNestedCurve(
+    shapesPoints: THREE.Vector3[][],
+  ): THREE.CatmullRomCurve3[] {
+    const catMull: THREE.CatmullRomCurve3[] = [];
+    for (const shapePoints of shapesPoints) {
+      const catMullCurve = new THREE.CatmullRomCurve3(shapePoints, true);
+      catMull.push(catMullCurve);
+    }
+
+    return catMull;
+  }
+  public extractCatmullPoints(
+    curve: THREE.CatmullRomCurve3,
+    divisions: number,
+  ): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    const divisor = 1.0 / divisions;
+    for (let i = 0; i < divisions; i++) {
+      const point = curve.getPoint(i * divisor);
+      points.push(point);
+    }
+    return points;
+  }
+
+  public vec3FlatToVec2(shapesPoints: THREE.Vector3[][]): THREE.Vector2[][] {
+    const shapesPoints2: THREE.Vector2[][] = [];
+    for (const shapePoints of shapesPoints) {
+      const newShapePoints: THREE.Vector2[] = [];
+      for (const point of shapePoints) {
+        const newPoint = new THREE.Vector2(point.x, point.y);
+        newShapePoints.push(newPoint);
+      }
+      shapesPoints2.push(newShapePoints);
+    }
+    return shapesPoints2;
+  }
+
+  public getLengths(points: THREE.Vector2[]): number[] {
+    const lengths: number[] = [];
+    const pointCount = points.length;
+    for (let i = 0; i < pointCount; i++) {
+      if (i === pointCount - 1) {
+        lengths.push(this.calcDist(points[i], points[0]));
+      } else {
+        lengths.push(this.calcDist(points[i], points[i + 1]));
+      }
+    }
+    return lengths;
+  }
+
+  public calcDist(pointA: THREE.Vector2, pointB: THREE.Vector2): number {
+    const a = pointB.x - pointA.x;
+    const b = pointB.y - pointA.y;
+    return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2));
+  }
+
+  // Pass in shape and holes separately, union them later
+  public extrudeTriangle(
+    pathPoints: THREE.Vector3[],
+    divisions: number,
+    size: number, //size of triangle
+  ): THREE.Mesh {
+    // Define the triangle shape (right isosceles triangle)
+    const triangleShape = new THREE.Shape();
+    triangleShape.moveTo(-size / 2, 0);
+    triangleShape.lineTo(size / 2, size / 2);
+    triangleShape.lineTo(size / 2, -size / 2);
+    triangleShape.lineTo(-size / 2, 0);
+
+    const path = new THREE.CatmullRomCurve3(pathPoints, true);
+    // Extrude settings
+    const extrudeSettings = {
+      steps: divisions, // Number of segments along the path
+      extrudePath: path,
+      bevelEnabled: false, // Disable bevels to keep the shape clean
+    };
+
+    // Create the extruded geometry
+    const extrudedGeometry = new THREE.ExtrudeGeometry(
+      triangleShape,
+      extrudeSettings,
+    );
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ff00,
+      //wireframe: true,
+    });
+    const extrudedMesh = new THREE.Mesh(extrudedGeometry, material);
+
+    // Add the extruded mesh to the scene
+    return extrudedMesh;
   }
 
   public updateEditorData(newData: EditorData) {
@@ -81,7 +619,7 @@ class SpellTracker {
 
       let l1BJSC = await this.convertThreeToJSCAD(layer1Base);
 
-      
+
 let l1BJSC = this.convertThreeToJSCAD(layer1Base);
       //let l1BCSG = CSG.fromMesh(layer1Base, 0);
       //let moduleIndex = 1;
@@ -117,7 +655,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
       const layer1 = this.convertJSCADToThree(l1BJSC, layerColor);
       layer1.name = 'layer1';
       resolve(layer1);
-      
+
     });
   } */
 
@@ -157,7 +695,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
           Number(module['data'][3]),
           module.editorData,
         );
-        const trackCubeJSC = await this.convertThreeToJSCAD(track);
+        const trackCubeJSC = await this.convertThreeToJSCAD(track[0]);
         l1BJSC = booleans.subtract(l1BJSC, trackCubeJSC);
       } else if (module['type'] === 1) {
         const dialCircle = await this.addDialCircle(
@@ -165,7 +703,7 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
           Number(module['data'][1]),
           module.editorData,
         );
-        const dialJSC = await this.convertThreeToJSCAD(dialCircle);
+        const dialJSC = await this.convertThreeToJSCAD(dialCircle[0]);
         l1BJSC = booleans.subtract(l1BJSC, dialJSC);
       }
     });
@@ -173,11 +711,11 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     await Promise.all(promises);
 
     const layer1 = await this.convertJSCADToThree(l1BJSC, layerColor);
-    layer1.name = 'layer1';
-    return layer1;
+    layer1[0].name = 'layer1';
+    return layer1[0];
   }
 
-  /*
+  /* Only available inside a web worker.
   private convertThreeToJSCADSync(model: THREE.Mesh): Geom3 {
     const meshSTL = this.threeExporter.parse(model, {
       binary: true,
@@ -208,9 +746,9 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
       threeModel,
       new THREE.MeshStandardMaterial({ color: modelColor }),
     );
-  }*/
+  } */
 
-  private async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
+  public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
     const stlString = this.threeExporter.parse(model, { binary: true });
     const blob = new Blob([stlString], { type: 'application/octet-stream' });
     const arrayBuffer = await blob.arrayBuffer();
@@ -225,7 +763,8 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     model: Geom3,
     modelColor: number,
     debug: boolean = false,
-  ): Promise<THREE.Mesh> {
+    wireframeOut: boolean = false,
+  ): Promise<THREE.Mesh[]> {
     const stlData = serialize.serialize({ binary: true }, model);
     //console.log(stlArray);
     //const stlBuffer = stlArray[2];
@@ -256,17 +795,35 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
         'color',
         new THREE.Float32BufferAttribute(colors, 3),
       );
-
+      let isTransparent = false;
+      if (wireframeOut) {
+        isTransparent = true;
+      }
       // Create a material that supports vertex colors
-      const material = new THREE.MeshBasicMaterial({ vertexColors: true });
+      const wireFrameMaterial = new THREE.MeshBasicMaterial({
+        wireframe: wireframeOut,
+        transparent: isTransparent,
+        opacity: 0.65,
+        color: 0xffffff,
+      });
+
+      const faceMaterial = new THREE.MeshStandardMaterial({
+        transparent: isTransparent,
+        opacity: 0.65,
+        vertexColors: true,
+      });
 
       // Create the mesh
-      const mesh = new THREE.Mesh(geometry, material);
-      return mesh;
+      const meshArr: THREE.Mesh[] = [];
+      meshArr.push(new THREE.Mesh(geometry, wireFrameMaterial));
+      meshArr.push(new THREE.Mesh(geometry, faceMaterial));
+      return meshArr;
     }
-    return new THREE.Mesh(
-      geometry,
-      new THREE.MeshStandardMaterial({ color: modelColor }),
+    return Array(
+      new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color: modelColor, wireframe: false }),
+      ),
     );
   }
 
@@ -957,6 +1514,48 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     });
   }
 
+  public async createLayer3TextForIntersect(): Promise<THREE.Mesh> {
+    return new Promise((resolve) => {
+      //create top layer, thick enough for min wall plus text thickness, then add slider tracks and holes for dial knob and number window
+      const length =
+        this.editorData.boundingBox.maxX +
+        20 -
+        this.editorData.boundingBox.minX +
+        20;
+      //base should consist of bottom layer, holes for magnets, and path for track/dials
+      //dial thickness will be magnetHeight + (gapWidth + minWall) * 2 for slider base track
+      //but also add textDepth
+      //plus 1 for wiggle room
+      const height = this.editorData.minWallWidth + this.editorData.textDepth;
+      //this.layer1Height = height;
+      const depth =
+        this.editorData.boundingBox.maxY +
+        20 -
+        this.editorData.boundingBox.minY +
+        20;
+      const geometry = new THREE.BoxGeometry(length, height, depth);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
+      });
+      //material.setValues({ opacity: 0.5, transparent: true });
+      const layer3Base = new THREE.Mesh(geometry, material);
+      layer3Base.position.set(length / 2, -height / 2 + 5, depth / 2); //top should be at 0
+      layer3Base.updateMatrix();
+      //this.scene.add(layer3Base);
+      let layer3CSG = CSG.fromMesh(layer3Base);
+      for (const module of this.modulesList) {
+        if (module['type'] === 3) {
+          const textModule = module as TextModule;
+          const csgObj = this.addTextLayer3(textModule['meshJSON']);
+          layer3CSG = layer3CSG.union(csgObj);
+        }
+      }
+      const layer3 = CSG.toMesh(layer3CSG, layer3Base.matrix, material);
+      //this.scene.add(layer3);
+      resolve(layer3);
+    });
+  }
+
   /**Need to maintain a new slider Length and width but translate based on Layer 1's numbers */
   public addSliderLayer3(
     length: number,
@@ -1072,6 +1671,46 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
     const mesh = this.objectLoader.parse(meshJSON) as THREE.Mesh;
     const textCSG = CSG.fromMesh(mesh);
     return textCSG;
+  }
+
+  //call this on each shape and hole
+  public addTextTriangleExtrusion(
+    shape: (PathPosition | THREE.Vec2)[],
+  ): THREE.Mesh {
+    const pathPos3d = WebGpuOps.convertPathPosArrayToTHREEVec3(shape);
+    const mesh = this.extrudeTriangle(pathPos3d, 50, 2);
+    return mesh;
+  }
+
+  //public async extrudeCharVert(shape: CharShape): Promise<Geom3> {
+
+  //}
+
+  public async extrudeCharTri(shape: CharShape): Promise<THREE.Mesh> {
+    const shapeMesh = this.addTextTriangleExtrusion(shape.shape);
+    const extrudedMeshArr: THREE.Mesh[] = [];
+    extrudedMeshArr.push(shapeMesh);
+    for (const hole of shape.holes) {
+      const holeMesh = this.addTextTriangleExtrusion(hole.reverse());
+      extrudedMeshArr.push(holeMesh);
+    }
+    const jscadArr: Geom3[] = [];
+    for (const mesh of extrudedMeshArr) {
+      const jscadMesh = await this.convertThreeToJSCAD(mesh);
+      jscadArr.push(jscadMesh);
+    }
+    const unionedJSCAD = await booleans.union(jscadArr);
+    const unionedThree = await this.convertJSCADToThree(unionedJSCAD, 0xffffff);
+    //unionedThree.material.wireframe = true;
+    return unionedThree[0];
+  }
+
+  public async extrudeAllCharsTri(shapes: CharShape[]): Promise<THREE.Mesh[]> {
+    const allMeshes: THREE.Mesh[] = [];
+    for (const shape of shapes) {
+      allMeshes.push(await this.extrudeCharTri(shape));
+    }
+    return allMeshes;
   }
 }
 

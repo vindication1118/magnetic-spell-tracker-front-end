@@ -239,12 +239,12 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     }
     //console.log(this.segmentLength);
 
-    this.addNumberDialInstance(20, 20);
-    this.addNumberDialInstance(60, 20);
-    this.addNumberDialInstance(100, 20);
+    //this.addNumberDialInstance(20, 20);
+    //this.addNumberDialInstance(60, 20);
+    //this.addNumberDialInstance(100, 20);
     //this.addText(0, 60, 10, 'Life Total', 8);
-    this.addPathText(0, 60, 10, 'Viktor', 8);
-    this.addPathText(0, 60, 30, 'Life Total', 8);
+    this.addPathText(0, 5, 10, 'Victor Eggos', 8);
+    //this.addPathText(0, 60, 30, 'Life Total', 8);
     /*this.addSlider(2, 90, 20, 10);
     this.addSlider(3, 90, 20, 20);
     this.addSlider(4, 90, 20, 30);
@@ -253,7 +253,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     this.addSlider(3, 0, 110, 20);
     this.addSlider(4, 0, 120, 20);
     this.addSlider(5, 0, 130, 20); */
-    this.proceduralPathfinder2eSpellSlots(10, 90);
+    //this.proceduralPathfinder2eSpellSlots(10, 90);
     //this.proceduralDND5eSpellSlots(50, 150);
 
     /*const res = this.parseTransform(`rotate(-10 50 100)
@@ -1235,7 +1235,8 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         });
 
         pathDataArr.forEach((charPath) => {
-          const newPathData = this.addExtraPointsToLines(charPath.data);
+          const extraPathData = this.addExtraPointsToLines(charPath.data);
+          const newPathData = this.reducePrecisionInPathData(extraPathData);
           //console.log(newPathData);
           const textGroup = d3
             .select('#svgContainer svg')
@@ -1270,6 +1271,12 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         bbox.x + bbox.width,
         bbox.y + bbox.height,
       );
+    });
+  }
+
+  public reducePrecisionInPathData(d: string, precision: number = 4) {
+    return d.replace(/(-?\d+\.\d+)/g, function (match) {
+      return parseFloat(match).toFixed(precision);
     });
   }
 
@@ -1321,6 +1328,30 @@ export class D3containerComponent implements OnInit, AfterViewInit {
             //console.log('Pushing new command: ' + newCommand);
             mergedCommands.push(newCommand);
           }
+        } else if (type === 'Z') {
+          const currentPos = positions[0];
+          const prevPos = positions[i - 1];
+
+          //console.log(prevPos);
+          //console.log(currentPos);
+          //newPoints.push(commands[i - 1]); // Add the original point?
+
+          // Determine the number of segments based on density
+          const distance = this.getDist(prevPos, currentPos);
+          //console.log('Distance: ' + distance);
+          const segments = Math.max(Math.floor(distance / density), 4);
+          //console.log('Segments: ' + segments);
+
+          // Interpolate points along the straight line segment
+          for (let j = 1; j < segments; j++) {
+            const t = j / segments;
+            const x = THREE.MathUtils.lerp(prevPos.x, currentPos.x, t);
+            const y = THREE.MathUtils.lerp(prevPos.y, currentPos.y, t);
+            const newCommand: string = 'L' + x + ' ' + y;
+            //console.log('Pushing new command: ' + newCommand);
+            mergedCommands.push(newCommand);
+          }
+          mergedCommands.push('Z');
         } else {
           //console.log('Type of commands[i]: ' + typeof commands[i]);
           mergedCommands.push(commands[i]);
@@ -1334,6 +1365,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
       //(commands.length + density * lineCommandCount),
       //);
     }
+    console.log(mergedCommands[mergedCommands.length - 1]);
     return mergedCommands.join('');
   }
 
@@ -1347,7 +1379,9 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     return Math.sqrt(a ** 2 + b ** 2);
   }
 
-  public getPositionsFromCommands(commands: RegExpMatchArray | null) {
+  public getPositionsFromCommands(
+    commands: RegExpMatchArray | null,
+  ): PathPosition[] {
     let x = 0,
       y = 0,
       firstPosition = { x: 0, y: 0 }; // Starting position of the pen

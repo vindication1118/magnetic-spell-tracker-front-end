@@ -1,3 +1,4 @@
+import { ManifoldWasmService } from './../../services/manifold-wasm.service';
 import {
   AfterViewInit,
   Component,
@@ -29,8 +30,16 @@ import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
 import * as d3 from 'd3';
 import { PathPosition } from '../../interfaces/path-position';
 import { CommandHandler } from '../../utils/SVGUtils';
-import { WebGpuOpsService } from '../../services/web-gpu-ops.service';
+import { CharShape } from '../../interfaces/char-shape';
+//import { CSG } from '../../utils/CSGMesh';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { Manifold } from 'manifold-3d';
+//import booleans from '@jscad/modeling/src/operations/booleans';
+//import { Geom3 } from '@jscad/modeling/src/geometries/types';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
+import { pathExtruder } from '../../utils/jscad-path-extrude';
+//4import { Geom3 } from '@jscad/modeling/src/geometries/types';
+import { Vec3 } from '@jscad/modeling/src/maths/vec3';
 @Component({
   selector: 'app-preview3d',
   standalone: true,
@@ -116,173 +125,17 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   // SSAO pass
   private ssaoPass!: SSAOPass;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private manifoldInstance!: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private meshInstance!: any;
+  private wasmLoaded: boolean = false;
 
   constructor(
     private ngZone: NgZone,
-    private webGpuOpsService: WebGpuOpsService,
+    private manifoldService: ManifoldWasmService,
+    //private webGpuOpsService: WebGpuOpsService,
   ) {}
-  /*
-  private initWebGL(): void {
-    const aspectRatio = this.getAspectRatio();
-    this.marchingRenderer = new THREE.WebGLRenderer({
-      canvas: this.marching,
-      logarithmicDepthBuffer: true,
-    });
-    this.marchingRenderer.setSize(window.innerWidth, window.innerHeight);
-
-    this.marchingScene = new THREE.Scene();
-    this.marchingCamera = new THREE.PerspectiveCamera(
-      this.fieldOfView,
-      aspectRatio,
-      this.nearClippingPlane,
-      this.farClippingPlane,
-    );
-    this.marchingCamera.position.z = 5;
-
-    const resolution = 50; // Define the resolution of the Marching Cubes
-    const effect = new MarchingCubes(
-      resolution,
-      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
-      true,
-      true,
-      100000,
-    );
-    effect.position.set(0, 0, 0);
-    effect.scale.set(700, 700, 700);
-
-    this.marchingScene.add(effect);
-
-    const light = new THREE.DirectionalLight(0xffffff);
-    light.position.set(1, 1, 1).normalize();
-    this.marchingScene.add(light);
-
-    // Markers for the axes. Keep commented for debug
-    const xMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
-    );
-    xMarker.position.set(50, 0, 0);
-    xMarker.rotation.set(0, 0, (90 * Math.PI) / 180);
-    this.marchingScene.add(xMarker);
-    const yMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
-    );
-    yMarker.position.set(0, 50, 0);
-    this.marchingScene.add(yMarker);
-    const zMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
-    );
-    zMarker.position.set(0, 0, 50);
-    zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
-    this.marchingScene.add(zMarker);
-
-    // Define the SDF functions and add objects
-    this.updateCubes(effect);
-    /*
-    const animate = () => {
-      requestAnimationFrame(animate);
-      this.updateCubes(effect);
-      this.marchingRenderer.render(this.marchingScene, this.marchingCamera);
-    };
-
-    animate();
-    this.marchingRenderer.setPixelRatio(devicePixelRatio);
-    this.marchingRenderer.setSize(
-      this.marching.clientWidth,
-      this.marching.clientHeight,
-    );
-    this.marchingControls = new OrbitControls(
-      this.marchingCamera,
-      this.marchingRenderer.domElement,
-    );
-    //eslint-disable-next-line
-    const component: Preview3dComponent = this;
-    this.ngZone.runOutsideAngular(() => {
-      (function render() {
-        component.frameID = requestAnimationFrame(render);
-        component.updateCubes(effect);
-        //component.animateCube();
-        component.marchingControls.update();
-        component.marchingRenderer.render(
-          component.marchingScene,
-          component.marchingCamera,
-        );
-        //console.log(component.camera.position);
-      })();
-    });
-  }
-
-  private updateCubes(effect: MarchingCubes): void {
-    effect.reset();
-
-    const sphere = (x: number, y: number, z: number, r: number) => {
-      return (xi: number, yi: number, zi: number) => {
-        return Math.sqrt((xi - x) ** 2 + (yi - y) ** 2 + (zi - z) ** 2) - r;
-      };
-    };
-
-    const box = (
-      x: number,
-      y: number,
-      z: number,
-      bx: number,
-      by: number,
-      bz: number,
-    ) => {
-      return (xi: number, yi: number, zi: number) => {
-        const dx = Math.max(Math.abs(xi - x) - bx, 0);
-        const dy = Math.max(Math.abs(yi - y) - by, 0);
-        const dz = Math.max(Math.abs(zi - z) - bz, 0);
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
-      };
-    };
-
-    const combineSDF = (
-      sdf1: CallableFunction,
-      sdf2: CallableFunction,
-      operation: string,
-    ) => {
-      return (x: number, y: number, z: number) => {
-        const d1 = sdf1(x, y, z);
-        const d2 = sdf2(x, y, z);
-        if (operation === 'union') {
-          return Math.min(d1, d2);
-        } else if (operation === 'intersection') {
-          return Math.max(d1, d2);
-        } else if (operation === 'difference') {
-          return Math.max(d1, -d2);
-        }
-        return d1;
-      };
-    };
-
-    const resolution = 50; // Ensure resolution matches the one used in the effect initialization
-    const halfResolution = resolution / 2;
-    const sdfResolution = 1 / resolution;
-
-    for (let x = 0; x < resolution; x++) {
-      for (let y = 0; y < resolution; y++) {
-        for (let z = 0; z < resolution; z++) {
-          const px = x * sdfResolution - halfResolution;
-          const py = y * sdfResolution - halfResolution;
-          const pz = z * sdfResolution - halfResolution;
-
-          const sphere1 = sphere(20, 20, 20, 30);
-          const box1 = box(-20, -20, -20, 20, 20, 20);
-          const sdf = combineSDF(sphere1, box1, 'union');
-
-          const value = sdf(px, py, pz);
-          effect.field[x + y * resolution + z * resolution * resolution] =
-            value;
-        }
-      }
-    }
-
-    effect.update();
-    console.log(effect);
-  } */
 
   /**
    * Create the scene
@@ -294,42 +147,22 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     //* Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
-    const lightAmbient = new THREE.AmbientLight(0xffffff, 0.5); // soft white light
+    const lightAmbient = new THREE.AmbientLight(0xffffff, 0.1); // soft white light
     this.scene.add(lightAmbient);
     this.lightDirected = new THREE.DirectionalLight(0xffffff, 1.0);
     this.scene.add(this.lightDirected);
     const targetObj = new THREE.Object3D();
     const bbox = this.editorData.boundingBox;
     console.log(bbox);
-    targetObj.position.set(
+    /*targetObj.position.set(
       (1 * (bbox.maxX - bbox.minX)) / 2,
       0,
       (1 * (bbox.maxY - bbox.minY)) / 2,
-    );
+    );*/
+    targetObj.position.set(60, -100, 0);
     this.scene.add(targetObj);
     this.lightDirected.target = targetObj;
-    this.lightDirected.position.set(0, 1000, 0);
-    /* // Markers for the axes. Keep commented for debug
-    const xMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 }),
-    );
-    xMarker.position.set(50, 0, 0);
-    xMarker.rotation.set(0, 0, (90 * Math.PI) / 180);
-    this.scene.add(xMarker);
-    const yMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
-    );
-    yMarker.position.set(0, 50, 0);
-    this.scene.add(yMarker);
-    const zMarker = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 100, 16),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff }),
-    );
-    zMarker.position.set(0, 0, 50);
-    zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
-    this.scene.add(zMarker); */
+    this.lightDirected.position.set(100, 200, 100);
 
     //*Camera
     const aspectRatio = this.getAspectRatio();
@@ -342,8 +175,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.camera.position.x = (1 * (bbox.maxX - bbox.minX)) / 2;
     this.camera.position.y = 8000;
     this.camera.position.z = 8000;
-    this.generateLayer3TextMeshes();
+    this.generateLayer3TextExtrusionsTri();
+    this.addAxesMarkers(true, true);
 
+    /*
     if (typeof Worker !== 'undefined') {
       // Create a new
       const worker = new Worker(new URL('./3d.worker', import.meta.url), {
@@ -372,7 +207,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       this.tracker.createLayer3().then((layer3) => {
         this.scene.add(layer3);
       });
-    }
+    } */
   }
 
   private getAspectRatio() {
@@ -423,11 +258,21 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     });
   }
 
-  ngOnInit(): void {
+  async ngOnInit() {
+    console.log('init preview3d');
     window.addEventListener('resize', () => this.onWindowResize());
+    console.log('init wasm');
+    await this.manifoldService.init();
+    console.log('getting preview manifold inst');
+    this.manifoldInstance = await this.manifoldService.getManifoldInstance();
+    this.meshInstance = await this.manifoldService.getMeshInstance();
+    console.log('doing three integration');
+
+    this.wasmLoaded = true;
+    console.log('done with preview init');
   }
 
-  ngAfterViewInit() {
+  async ngAfterViewInit() {
     console.log(this.canvasses);
     this.canvasRef = this.canvasses.first;
     this.marchingRef = this.canvasses.last;
@@ -440,6 +285,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       .attr('width', '100%')
       .attr('height', '100%');
     const zoomableGroup = this.svgGroup.append('g');
+    // Define the zoomed function
+    function zoomed(event: d3.D3ZoomEvent<SVGGElement, unknown>): void {
+      // Apply the transformation to the <g> element
+      zoomableGroup.attr('transform', event.transform.toString());
+    }
 
     // Add your content to the zoomable group
     zoomableGroup
@@ -450,12 +300,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       .attr('x', 0)
       .attr('y', 0);
 
-    // Define the zoomed function
-    function zoomed(event: d3.D3ZoomEvent<SVGGElement, unknown>): void {
-      // Apply the transformation to the <g> element
-      zoomableGroup.attr('transform', event.transform.toString());
-    }
-
     // Set up the zoom behavior
     const zoom: d3.ZoomBehavior<SVGSVGElement, unknown> = d3
       .zoom<SVGSVGElement, unknown>()
@@ -465,23 +309,123 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     // Apply the zoom behavior to the SVG
     this.svgGroup.call(zoom);
 
+    await this.manifoldService.init();
     this.tracker = new SpellTracker(this.editorData, this.modulesList);
     //this.initWebGL();
     this.createScene();
     this.startRenderingLoop();
   }
 
+  // X is red, Y is Green, Z is Blue
+  private async addAxesMarkers(three: boolean, manifold: boolean) {
+    if (three) {
+      // Markers for the axes.
+      const xMarker = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 200, 16),
+        new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+      );
+      xMarker.position.set(100, 0, 0);
+      xMarker.rotation.set(0, 0, (90 * Math.PI) / 180);
+      this.scene.add(xMarker);
+      const yMarker = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 200, 16),
+        new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+      );
+      yMarker.position.set(0, 100, 0);
+      this.scene.add(yMarker);
+      const zMarker = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 200, 16),
+        new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+      );
+      zMarker.position.set(0, 0, 100);
+      zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
+      this.scene.add(zMarker);
+    }
+    if (manifold) {
+      await this.manifoldService.init();
+      const wasm = this.manifoldService.wasm;
+      // Markers for the axes.
+      let xMarker: Manifold = wasm.Manifold.cylinder(100, 0.1, 0.1, 100, false);
+      xMarker = xMarker.rotate(0, -90, 0);
+      let xMarkerPlus: Manifold = wasm.Manifold.cube(3, true);
+      xMarkerPlus = xMarkerPlus.translate([100, 0, 0]);
+      let xMarkerMinus: Manifold = wasm.Manifold.sphere(3, 16);
+      xMarkerMinus = xMarkerMinus.translate([-100, 0, 0]);
+      this.scene.add(
+        this.manifoldService.manifold2ThreeMesh(
+          xMarker,
+          new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          xMarkerPlus,
+          new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          xMarkerMinus,
+          new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+        ),
+      );
+      let yMarker: Manifold = wasm.Manifold.cylinder(100, 0.1, 0.1, 100, false);
+      yMarker = yMarker.rotate(-90, 0, 0);
+      let yMarkerPlus: Manifold = wasm.Manifold.cube(3, true);
+      yMarkerPlus = yMarkerPlus.translate([0, 100, 0]);
+      let yMarkerMinus: Manifold = wasm.Manifold.sphere(3, 16);
+      yMarkerMinus = yMarkerMinus.translate([0, -100, 0]);
+      this.scene.add(
+        this.manifoldService.manifold2ThreeMesh(
+          yMarker,
+          new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          yMarkerPlus,
+          new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          yMarkerMinus,
+          new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+        ),
+      );
+      const zMarker: Manifold = wasm.Manifold.cylinder(
+        100,
+        0.1,
+        0.1,
+        100,
+        false,
+      );
+      let zMarkerPlus: Manifold = wasm.Manifold.cube(3, true);
+      zMarkerPlus = zMarkerPlus.translate([0, 0, 100]);
+      let zMarkerMinus: Manifold = wasm.Manifold.sphere(3, 16);
+      zMarkerMinus = zMarkerMinus.translate([0, 0, -100]);
+      this.scene.add(
+        this.manifoldService.manifold2ThreeMesh(
+          zMarker,
+          new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          zMarkerPlus,
+          new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+        ),
+        this.manifoldService.manifold2ThreeMesh(
+          zMarkerMinus,
+          new THREE.MeshBasicMaterial({ color: 0x0000ff }),
+        ),
+      );
+    }
+  }
+
+  /*
   private async calculate3DText(
     interior: (THREE.Vec2 | PathPosition)[],
     exterior: (THREE.Vec2 | PathPosition)[],
   ) {
     try {
-      await this.webGpuOpsService.initialize();
-      const geometry = this.webGpuOpsService.runComputeShaderAndCreateGeometry(
-        interior,
-        exterior,
-      );
-      geometry.then((result) => {
+      await WebGpuOps.initialize();
+      const geometry = WebGpuOps
+        .runComputeShaderAndCreateGeometry
+        //interior,
+        //exterior,
+        ();
+      geometry.then((result: Geom3) => {
         //convert to stl then to three and add to scene
         this.tracker
           .convertJSCADToThree(
@@ -496,7 +440,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     } catch (error) {
       console.error(error);
     }
-  }
+  }*/
 
   private updateLighting(
     lightDirected: THREE.DirectionalLight,
@@ -599,20 +543,246 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
    *  mesh here, store it in the modulesList, then handle it in a web worker or failing that,
    *  in the tracker module
    */
-  public generateLayer3TextMeshes() {
+  public shapesToVec3s(shapes: THREE.Shape[]): Vec3[][] {
+    const charVec3s: Vec3[][] = [];
+    shapes.forEach((sh) => {
+      const shPoints: Vec3[] = [];
+      sh.getPoints(50).forEach((pt) => {
+        shPoints.push([pt.x, pt.y, 0]);
+      });
+      charVec3s.push(shPoints);
+      sh.getPointsHoles(50).forEach((hole) => {
+        const holePoints: Vec3[] = [];
+        hole.forEach((pt) => {
+          holePoints.push([pt.x, pt.y, 0]);
+        });
+        charVec3s.push(holePoints);
+      });
+    });
+    return charVec3s;
+  }
+
+  public charShapesToVec3s(shapes: CharShape[]): Vec3[][] {
+    const charVec3s: Vec3[][] = [];
+    shapes.forEach((sh) => {
+      const shPoints: Vec3[] = [];
+      sh.shape.forEach((pt) => {
+        shPoints.push([pt.x, pt.y, 0]);
+      });
+      charVec3s.push(shPoints);
+      sh.holes.forEach((hole) => {
+        const holePoints: Vec3[] = [];
+        hole.forEach((pt) => {
+          holePoints.push([pt.x, pt.y, 0]);
+        });
+        charVec3s.push(holePoints);
+      });
+    });
+    return charVec3s;
+  }
+
+  public async generateLayer3TextExtrusionsTri() {
+    await this.manifoldService.init();
+    const charDepth = 1;
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
+        console.log(module.data);
+        const textMeshTri = this.generateTextShapes(
+          module['data'][3] as unknown as string,
+        );
+        const extraPoints: CharShape[] = [];
+        textMeshTri.forEach((sh) => {
+          const newShape = this.tracker.addExtraPoints(sh.getPoints(20));
+          const newHoles = sh.getPointsHoles(20).map((pts) => {
+            return this.addExtraPoints(pts);
+          });
+          extraPoints.push({ shape: newShape, holes: newHoles });
+        });
+        const otherShapes = this.charShapesToVec3s(extraPoints);
+        const myGeo3s = pathExtruder.testExtrude(2, otherShapes);
+        myGeo3s.forEach((geo) => {
+          this.tracker
+            .convertJSCADToThree(geo, 0xffff00, true, true)
+            .then((res) => {
+              res.forEach((mesh) => {
+                this.scene.add(mesh);
+              });
+            });
+        });
+        //textModule['meshJSON'] = textMesh;
         const textModule = module as TextModule;
         //console.log(textModule.data);
-        const textMesh = this.generateTextMeshJSON(
+        /*
+        const textMeshVertArr = this.generateTextMeshesForIntersect(
           module['data'][3] as unknown as string,
-          module as TextModule,
+          textModule,
+          charDepth,
         );
-        textModule['meshJSON'] = textMesh;
+        const manifolds: Manifold[] = await this.tracker.getAllExtrusions(
+          this.manifoldService,
+          textMeshTri,
+          charDepth,
+        );
+
+        for (let i = 0; i < manifolds.length; i++) {
+          let maniVert = this.manifoldService.threeMesh2manifold(
+            textMeshVertArr[i],
+          );
+          const translate = -(charDepth / 2 + 0.1);
+          maniVert = maniVert.translate([0, 0, translate]);
+          const maniFinal = this.manifoldService.csgSubtraction(
+            maniVert,
+            manifolds[i],
+          );
+          const maniMesh = this.manifoldService.manifold2ThreeMesh(
+            maniFinal,
+            new THREE.MeshStandardMaterial({
+              transparent: true,
+              opacity: 0.65,
+            }),
+          );
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const maniMeshWire = new THREE.Mesh(
+            maniMesh.geometry,
+            new THREE.MeshBasicMaterial({
+              color: 0x0000ff,
+              wireframe: true,
+            }),
+          );
+          //this.scene.add(maniMesh, maniMeshWire);
+        } */
+
+        //const vert = textMeshVertArr[index];
+        //const vertCSG = CSG.fromMesh(vert);
+        //const triCSG = CSG.fromMesh(mesh);
+        //const subtractCSG = this.manifoldService.threeSubtraction(vert, mesh);
+        //const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
+        //const intersectGeom = CSG.toGeometry(intersectCSG);
+        //const intersectMesh = new THREE.Mesh(intersectGeom, material);
+        //this.scene.add(subtractCSG);
+        //this.scene.add(maniMesh);
+        //this.scene.add(maniMeshWire);
+        //await this.sleep(5000);
       }
     }
     //console.log(this.modulesList);
     this.tracker.updateModulesList(this.modulesList);
+  }
+
+  // Function to convert a Three.js geometry into a format usable by Manifold-3D
+  public convertThreeJsToManifold(geometry: THREE.BufferGeometry) {
+    // Extract positions (vertices) and indices (faces) from the BufferGeometry
+    const positions = geometry.getAttribute('position').array;
+    const indices = geometry.getIndex() ? geometry.getIndex()?.array : null;
+
+    // Convert positions to a flat array of Vec3
+    const vertices = [];
+    for (let i = 0; i < positions.length; i += 3) {
+      vertices.push([positions[i], positions[i + 1], positions[i + 2]]);
+    }
+
+    // Convert indices to faces (triangles)
+    const faces = [];
+    if (indices) {
+      for (let i = 0; i < indices.length; i += 3) {
+        faces.push([indices[i], indices[i + 1], indices[i + 2]]);
+      }
+    } else {
+      // If no indices are provided, create faces from sequential vertices
+      for (let i = 0; i < vertices.length / 3; i++) {
+        faces.push([i * 3, i * 3 + 1, i * 3 + 2]);
+      }
+    }
+
+    return { vertices, faces };
+  }
+
+  public cleanTHREEMeshGeometry(geometry: THREE.BufferGeometry) {
+    // Step 1: Merge vertices to remove duplicates
+    geometry = BufferGeometryUtils.mergeVertices(geometry);
+
+    // Step 2: Remove unreferenced vertices (not directly supported by Three.js)
+    // Recalculate bounding sphere and bounding box to update geometry state
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
+    // Step 3: Recompute vertex normals to fix shading and lighting issues
+    geometry.computeVertexNormals();
+
+    // Additional cleanup steps:
+    // - You can also check for non-manifold edges or perform more advanced cleaning
+    //   using external libraries or tools as needed.
+
+    return geometry;
+  }
+
+  // A function that returns a promise that resolves after the given milliseconds
+  private sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  public generateLayer3TextMeshes(charDepth: number): void | THREE.Mesh[] {
+    for (const module of this.modulesList) {
+      if (module['type'] === 3) {
+        const textModule = module as TextModule;
+        //console.log(textModule.data);
+        const textMesh = this.generateTextMeshesForIntersect(
+          module['data'][3] as unknown as string,
+          textModule,
+          charDepth,
+        );
+        return textMesh;
+      }
+    }
+    //console.log(this.modulesList);
+    this.tracker.updateModulesList(this.modulesList);
+  }
+
+  public generateTextMeshesForIntersect(
+    svgPathNode: string,
+    moduleInfo: TextModule,
+    charDepth: number,
+  ): THREE.Mesh[] {
+    //const layer3Height =
+    //  moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
+    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
+    const yTranslate = -(charDepth / 2 + 0.1);
+    const loader = new SVGLoader();
+    const data = loader.parse(svgPathNode);
+    //get path for each character
+    const paths = data.paths;
+    console.log(paths);
+    const shapes: THREE.Shape[] = [];
+    for (let i = 0; i < paths.length; i++) {
+      const path = paths[i];
+
+      const shapesTemp = path.toShapes(true);
+      shapes.push(...shapesTemp);
+    }
+    console.log(moduleInfo);
+    const extrudeSettings = {
+      steps: 2,
+      depth: charDepth,
+      bevelEnabled: false,
+      bevelThickness: 0,
+      bevelSize: 0,
+      bevelOffset: 0,
+      bevelSegments: 0,
+    };
+    const geometryArr: THREE.ExtrudeGeometry[] = [];
+    shapes.forEach((shape) =>
+      geometryArr.push(new THREE.ExtrudeGeometry(shape, extrudeSettings)),
+    );
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const meshes: THREE.Mesh[] = [];
+    geometryArr.forEach((geometry) => {
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.rotation.set(Math.PI / 2, 0, 0);
+      mesh.position.y = yTranslate;
+      mesh.updateMatrix();
+      meshes.push(mesh);
+    });
+    return meshes;
   }
 
   /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to
@@ -674,6 +844,68 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return meshJSON;
   }
 
+  /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to
+   * work properly. All the CSG stuff is the expensive stuff anyway, so we build the mesh here then merge it
+   * in the web worker
+   */
+
+  public generateTextCharShapes(svgPathNode: string): CharShape[] {
+    //const layer3Height =
+    // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
+    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
+    const loader = new SVGLoader();
+    const data = loader.parse(svgPathNode);
+    //get path for each character
+    const paths = data.paths;
+    //console.log(paths);
+    const shapes: THREE.Shape[] = [];
+    for (let i = 0; i < paths.length; i++) {
+      const path = paths[i];
+      const shapesTemp = path.toShapes(true);
+      shapes.push(...shapesTemp);
+    }
+
+    /**
+     * each continuous non whitespace character or continuous component of a character
+     * (like i is 2 because of the i dot) in our string has its own array of
+     * {x: xval, y: yval} objects
+     */
+    //console.log(shapes);
+    const myShapes = shapes.map((shape) => {
+      return shape.extractPoints(5);
+      //const allPoints = [...points.shape, ...points.holes.flat()];
+      //return allPoints;
+    });
+
+    return myShapes;
+  }
+
+  public generateTextShapes(svgPathNode: string): THREE.Shape[] {
+    //const layer3Height =
+    // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
+    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
+    const loader = new SVGLoader();
+    const data = loader.parse(svgPathNode);
+    //get path for each character
+    const paths = data.paths;
+    //console.log(paths);
+    const shapes: THREE.Shape[] = [];
+    for (let i = 0; i < paths.length; i++) {
+      const path = paths[i];
+      const shapesTemp = path.toShapes(true);
+      shapes.push(...shapesTemp);
+    }
+
+    /**
+     * each continuous non whitespace character or continuous component of a character
+     * (like i is 2 because of the i dot) in our string has its own array of
+     * {x: xval, y: yval} objects
+     */
+    console.log(shapes);
+
+    return shapes;
+  }
+
   public extractFlatCoordinates(shapeData: {
     shape: THREE.Vec2[];
     holes: THREE.Vec2[][];
@@ -709,13 +941,13 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           .style('stroke', CommandHandler.getRandomColor())
           .style('stroke-width', 0.05);
       });
-      const voronoiPoints = CommandHandler.simplifyPoints(
+      /*const voronoiPoints = CommandHandler.simplifyPoints(
         this.parsePathData(svgPaths.join()),
       );
       this.calculate3DText(voronoiPoints, [
         ...CommandHandler.simplifyPoints(shape.shape),
         ...CommandHandler.simplifyPoints(shape.holes.flat()),
-      ]);
+      ]);*/
     }
     //console.log(moduleInfo.data);
     zoomableGroup
@@ -783,7 +1015,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return finalBounds;
   }
 
-  public parsePathData(pathData: string) {
+  public parsePathData(pathData: string): PathPosition[] {
     const commands = pathData.match(/[a-df-z][^a-df-z]*/gi);
     let x = 0,
       y = 0,

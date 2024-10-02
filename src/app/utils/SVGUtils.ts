@@ -5,7 +5,7 @@ import { CharShape } from '../interfaces/char-shape';
 import { LineSegment } from '../interfaces/line-segment';
 import * as THREE from 'three';
 import { PathCommand } from '../interfaces/path-command';
-import * as jscad from '@jscad/modeling';
+import * as jscad from '@jscad/modeling/src/index';
 
 type JGeom2 = jscad.geometries.geom2.Geom2;
 type JGeom3 = jscad.geometries.geom3.Geom3;

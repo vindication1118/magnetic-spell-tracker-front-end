@@ -1,16 +1,19 @@
 /// <reference types="@webgpu/types" />
 
 import { PathPosition } from '../interfaces/path-position';
-import { Injectable } from '@angular/core';
 import * as THREE from 'three';
-import * as jscad from '@jscad/modeling';
+import * as jscad from '@jscad/modeling/src/index';
 import { Vec3 } from '@jscad/modeling/src/maths/vec3';
 //import _ from 'lodash';
 
-@Injectable({
-  providedIn: 'root',
-})
-export class WebGpuOpsService {
+export class WebGpuOps {
+  static runComputeShaderAndCreateGeometry() {
+    //exterior: (THREE.Vec2 | PathPosition)[], //interior: (THREE.Vec2 | PathPosition)[],
+    throw new Error('Method not implemented.');
+  }
+  static initialize() {
+    throw new Error('Method not implemented.');
+  }
   constructor() {}
 
   private device: GPUDevice | null = null;
@@ -144,6 +147,17 @@ export class WebGpuOpsService {
     });
 
     return vec3Array;
+  }
+
+  static convertPathPosArrayToTHREEVec3(
+    points: (THREE.Vector2 | PathPosition)[],
+  ) {
+    const vec3Arr: THREE.Vector3[] = [];
+    points.forEach((point) => {
+      vec3Arr.push(new THREE.Vector3(point.x, 0, point.y));
+    });
+
+    return vec3Arr;
   }
 
   public getBinaryFloatToInt(wrongFloat: number): number {

@@ -9,20 +9,39 @@
  */
 
 import { colors, geometries, maths, extrusions } from '@jscad/modeling';
-import { cuboid, circle, polygon } from '@jscad/modeling/src/primitives';
+import { cuboid, circle /*, polygon*/ } from '@jscad/modeling/src/primitives';
 import { rotate, translate } from '@jscad/modeling/src/operations/transforms';
 import {
   extrudeLinear,
-  extrudeRotate,
+  //extrudeRectangular,
+  //extrudeRotate,
   slice,
 } from '@jscad/modeling/src/operations/extrusions';
 import { bezier } from '@jscad/modeling/src/curves';
 import { Mat4, Vec2, Vec3 } from '@jscad/modeling/src/maths/types';
-import { Colored, Geom2, Geom3 } from '@jscad/modeling/src/geometries/types';
-import { degToRad } from '@jscad/modeling/src/utils';
+import { Vec3 as mVec3 } from 'manifold-3d';
+import {
+  Colored,
+  Geom2,
+  Geom3,
+  Poly3,
+} from '@jscad/modeling/src/geometries/types';
+//import { degToRad } from '@jscad/modeling/src/utils';
 import { create, fromRotation } from '@jscad/modeling/src/maths/mat4';
 import { SplitCorners } from '../interfaces/split-corners';
 import { angle } from '@jscad/modeling/src/maths/vec3';
+import { IJscadFrenetFrames } from '../interfaces/jscad-frenet-frames';
+//import geom2 from '@jscad/modeling/src/geometries/geom2';
+import poly3 from '@jscad/modeling/src/geometries/poly3';
+import geom3 from '@jscad/modeling/src/geometries/geom3';
+import { union } from '@jscad/modeling/src/operations/booleans';
+import { hull } from '@jscad/modeling/src/operations/hulls';
+import { ManifoldWasmService } from '../services/manifold-wasm.service';
+import { JscadExtractedData } from '../interfaces/jscad-extracted-data';
+import { JscadFlattenedData } from '../interfaces/jscad-flattened-data';
+import { Manifold } from 'manifold-3d';
+import { CharShapeData } from '../interfaces/char-shape-data';
+import { CharShapeGeometry } from '../interfaces/char-shape-geometry';
 
 export class pathExtruder {
   shapes3D = [
@@ -110,143 +129,146 @@ export class pathExtruder {
     );
   }
 
+  public static extractVerticesAndFaces(geom: Geom3): JscadExtractedData {
+    const polygons = geom3.toPolygons(geom);
+
+    const vertices: Vec3[] = [];
+    const faces: number[][] = [];
+    const vertexMap = new Map<string, number>(); // To keep track of unique vertices
+    let vertexIndex = 0;
+
+    polygons.forEach((polygon) => {
+      const face: number[] = [];
+
+      polygon.vertices.forEach((vertex) => {
+        const v = vertex as Vec3;
+        const key = `${v[0]}_${v[1]}_${v[2]}`; // Use a key to uniquely identify the vertex
+
+        if (!vertexMap.has(key)) {
+          // If the vertex hasn't been added yet, add it to the list
+          vertices.push([v[0], v[1], v[2]]);
+          vertexMap.set(key, vertexIndex);
+          vertexIndex++;
+        }
+
+        // Add the vertex index to the face
+        face.push(vertexMap.get(key) as number);
+      });
+
+      // Each face is a list of indices referencing the vertex list
+      faces.push(face);
+    });
+
+    return { vertices, faces };
+  }
+
+  public static flattenVerticesAndFaces(
+    vertices: Vec3[],
+    faces: number[][],
+  ): JscadFlattenedData {
+    const flatVertices: Float32Array = new Float32Array(vertices.flat()); // Flatten the array of vertices
+    const flatFaces: Uint32Array = new Uint32Array(faces.flat()); // Flatten the array of face indices
+
+    return { flatVertices, flatFaces };
+  }
+
+  public static createManifoldFromJSCAD(
+    geom: Geom3,
+    mani: ManifoldWasmService,
+  ): Manifold {
+    // Step 1: Extract vertices and faces from JSCAD Geom3
+    const { vertices, faces } = this.extractVerticesAndFaces(geom);
+
+    // Step 2: Flatten the data for manifold-3d
+    const { flatVertices, flatFaces } = this.flattenVerticesAndFaces(
+      vertices,
+      faces,
+    );
+
+    // Step 3: Create the Manifold object
+    const manimesh = new mani.wasm.Mesh({
+      numProp: 3,
+      vertProperties: flatVertices,
+      triVerts: flatFaces as Uint32Array,
+    });
+
+    const manifold = new mani.wasm.Manifold(manimesh);
+
+    return manifold;
+  }
+
   public static testExtrude(
     triangleHeight: number,
-    otherShapes?: Vec3[][],
-  ): Geom3[] {
-    const testLine: Vec3[] = [
-      [11.408, 9.773425, 0],
-      [11.408, 9.723075000000001, 0],
-      [11.408, 9.672725, 0],
-      [11.408, 9.622375000000002, 0],
-      [11.408, 9.57205, 0],
-      [11.408, 9.52175, 0],
-      [11.408, 9.471425, 0],
-      [11.408, 9.421074999999998, 0],
-      [11.408, 9.370725, 0],
-      [11.408, 9.320374999999999, 0],
-      [11.408, 9.270025, 0],
-      [11.408, 9.219674999999999, 0],
-      [11.408, 9.169325, 0],
-      [11.408, 9.118974999999999, 0],
-      [11.408, 9.068625, 0],
-      [11.408, 9.018275, 0],
-      [11.408, 8.967925000000001, 0],
-      [11.408, 8.917575, 0],
-      [11.408, 8.867225000000001, 0],
-      [11.408, 8.816875, 0],
-      [11.408, 8.766525000000001, 0],
-      [11.408, 8.716175, 0],
-      [11.408, 8.665825000000002, 0],
-      [11.408, 8.615475, 0],
-      [11.408, 8.56515, 0],
-      [11.408, 8.51485, 0],
-      [11.408, 8.464524999999998, 0],
-      [11.408, 8.414175, 0],
-      [11.408, 8.363824999999999, 0],
-      [11.408, 8.313475, 0],
-      [11.408, 8.263124999999999, 0],
-      [11.408, 8.212775, 0],
-      [11.408, 8.162424999999999, 0],
-      [11.408, 8.112075, 0],
-      [11.408, 8.061725, 0],
-      [11.408, 8.011375000000001, 0],
-      [11.408, 7.961025, 0],
-      [11.408, 7.910675, 0],
-      [11.408, 7.8603250000000005, 0],
-      [11.408, 7.809975, 0],
-      [11.408, 7.759625, 0],
-      [11.408, 7.709275, 0],
-      [11.408, 7.658925, 0],
-      [11.408, 7.608575, 0],
-      [11.408, 7.55825, 0],
-      [11.408, 7.50795, 0],
-      [11.408, 7.457625, 0],
-      [11.408, 7.407275, 0],
-      [11.408, 7.356925, 0],
-      [11.408, 7.306575, 0],
-      [11.408, 7.256225, 0],
-      [11.408, 7.205875, 0],
-      [11.408, 7.155525, 0],
-      [11.408, 7.105175, 0],
-      [11.408, 7.054825, 0],
-      [11.408, 7.004475, 0],
-      [11.408, 6.954125, 0],
-      [11.408, 6.9037749999999996, 0],
-      [11.408, 6.853425, 0],
-      [11.408, 6.803075, 0],
-      [11.408, 6.752725, 0],
-      [11.408, 6.702375, 0],
-      [11.408, 6.65205, 0],
-      [11.408, 6.60175, 0],
-      [11.408, 6.551425, 0],
-      [11.408, 6.501075, 0],
-      [11.408, 6.450725, 0],
-      [11.408, 6.400375, 0],
-      [11.408, 6.3500250000000005, 0],
-      [11.408, 6.299675, 0],
-      [11.408, 6.249325, 0],
-      [11.408, 6.198975, 0],
-      [11.408, 6.148625, 0],
-      [11.408, 6.098275, 0],
-      [11.408, 6.047925, 0],
-      [11.408, 5.997575, 0],
-      [11.408, 5.947225, 0],
-      [11.408, 5.896875, 0],
-      [11.408, 5.846525, 0],
-      [11.408, 5.796175, 0],
-      [11.408, 5.745825, 0],
-      [11.408, 5.695475, 0],
-      [11.408, 5.64515, 0],
-      [11.408, 5.59485, 0],
-      [11.408, 5.544525, 0],
-      [11.408, 5.494175, 0],
-      [11.408, 5.443825, 0],
-      [11.408, 5.393475, 0],
-      [11.408, 5.343125, 0],
-      [11.408, 5.292775, 0],
-      [11.408, 5.242425, 0],
-      [11.408, 5.192075, 0],
-      [11.408, 5.141725, 0],
-      [11.408, 5.091375, 0],
-      [11.408, 5.041025, 0],
-      [11.408, 4.9906749999999995, 0],
-      [11.408, 4.940325, 0],
-      [11.408, 4.889975, 0],
-      [11.408, 4.839625, 0],
-      [11.408, 4.789275, 0],
-      [11.408, 4.738925, 0],
-      [11.408, 4.688575, 0],
-      [11.408, 4.63825, 0],
-      [11.408, 4.58795, 0],
-      [11.408, 4.537625, 0],
-      [11.408, 4.487275, 0],
-      [11.408, 4.4369250000000005, 0],
-      [11.408, 4.386575, 0],
-      [11.408, 4.336225, 0],
-      [11.408, 4.285875, 0],
-    ];
-    const exts: Geom3[] = [];
+    otherShapes?: CharShapeData[],
+  ): CharShapeGeometry[] {
+    //each shape or hole is an mVec3[]
+    //store together in an array since we want to union the extusions
+    //of each shape and hole but we don't want hulls to get screwed up
+    //so we do mVec3[][]
+    //Now we have multiple characters or character parts so we
+    //put them in an array for mVec3[][][]
+    //but Each of these is made of an array of prisms which is each an mVec3[]
+    //so we get mVec3[][][][]
+    const exts: CharShapeGeometry[] = [];
 
     const triPoints: Vec2[] = [
       [0, 0],
       [-triangleHeight, -triangleHeight],
       [triangleHeight, -triangleHeight],
     ];
-    otherShapes?.push(testLine);
-    const triPoly = polygon({ points: triPoints });
-    console.log(otherShapes);
+    //const triPoly = polygon({ points: triPoints });
+
     otherShapes?.forEach((sh) => {
-      if (!this.samePoints(sh[0], sh[sh.length - 1])) {
-        sh?.push(sh[0]);
+      // possibly unecessary since we're unioning double hulls, and those
+      // complete the loop
+      //if (!this.samePoints(sh[0], sh[sh.length - 1])) {
+      //  sh?.push(sh[0]);
+      //}
+      if (!this.isWhitespace(sh.character)) {
+        const shapeAndHolesGeo: mVec3[][][] = [];
+        const shapeGeo = this.extrudeShapeAlongPath(triPoints, sh.shape);
+        shapeAndHolesGeo.push(shapeGeo);
+        const holesGeo: mVec3[][][] = [];
+        sh.holes.forEach((hole) => {
+          holesGeo.push(this.extrudeShapeAlongPath(triPoints, hole));
+        });
+        shapeAndHolesGeo.push(...holesGeo);
+        const CSGeo: CharShapeGeometry = {
+          shapeAndHoles: shapeAndHolesGeo,
+          character: sh.character,
+          index: sh.index,
+        };
+        exts.push(CSGeo);
       }
+      //exts.push(manifold);
+      //exts.push(...geos);
+      /*if (!this.samePoints(sh[0], sh[sh.length - 1])) {
+        sh?.push(sh[0]);
+      }*/
+      /*const shPts = geom2.fromPoints(this.v3toV2(sh));
+      console.log(shPts);
+      try {
+        geom2.validate(shPts);
+      } catch (e) {
+        console.log(e);
+      }
+
+      //const rect = extrudeRectangular({}, shPts);
+      //exts.push(rect);
+
       const splitCorners = this.splitCorners(sh);
       console.log(splitCorners);
       splitCorners.nonLinear.forEach((section, index) => {
         console.log(index);
         const ctlPts = this.getBezierControlPoints(section);
-        const charExt = this.extrudeAlongPath(section, ctlPts, triPoly, true);
-        exts.push(charExt);
+        //const charExt = this.extrudeAlongPath(section, ctlPts, triPoly, true);
+        const geo = geom2.fromPoints(this.v3toV2(section));
+        const outlines = geom2.toOutlines(geo);
+        //outlines.forEach((outline) => {
+        const charExt = extrudeRectangular({ height: 2, size: 2 }, geo);
+        console.log(charExt);
+        //exts.push(charExt);
+        //});
       });
       const pointSet = this.removeDuplicateVectors(splitCorners.endCaps);
       pointSet.forEach((point) => {
@@ -260,20 +282,37 @@ export class pathExtruder {
         );
         cone = rotate([degToRad(180), 0, 0], cone);
         cone = translate(point, cone);
-        exts.push(cone);
+        //exts.push(cone);
       });
       splitCorners.linear.forEach((section) => {
-        const charExt = this.doExtrudeLinear(section, triPoly);
+        //const charExt = this.doExtrudeLinear(section, triPoly);
+        const sec2 = this.v3toV2(section);
+        const geo = geom2.fromPoints(sec2);
+        console.log(geo);
+        const charExt = extrudeRectangular({ height: 0.5, size: 0.1 }, geo);
         exts.push(charExt);
-      });
+        //exts.push(charExt);
+      }); */
     });
 
     return exts;
   }
 
+  public static isWhitespace(char: string): boolean {
+    return char.trim() === '';
+  }
+
   public static removeDuplicateVectors(points: Vec3[]): Set<Vec3> {
     const pointSet = new Set(points);
     return pointSet;
+  }
+
+  public static v3toV2(sh: Vec3[]): Vec2[] {
+    const ret: Vec2[] = [];
+    sh.forEach((pt) => {
+      ret.push([pt[0], pt[1]]);
+    });
+    return ret;
   }
 
   // Function to generate a Mat4 that rotates the shape from XY to XZ and aligns its normal to a line segment in the XY plane
@@ -363,8 +402,6 @@ export class pathExtruder {
 
     // Create the bezier function
     const shapeCurve = bezier.create(bezierControlPoints);
-    console.log('bezier Curve:');
-    console.log(shapeCurve);
 
     // ...and extrude.
     return extrusions.extrudeFromSlices(
@@ -378,13 +415,11 @@ export class pathExtruder {
             6,
           );
 
-          console.log(positionArray);
           const tangentArray = this.reduceVec3Precision(
             this.arrayOrNumToVec3(bezier.tangentAt(progress, shapeCurve)),
             6,
           );
 
-          console.log(tangentArray);
           const rotationMatrix = this.reduceMat4Precision(
             this.rotationMatrixFromVectors(
               bezierDelta,
@@ -393,7 +428,6 @@ export class pathExtruder {
             6,
           );
 
-          console.log(rotationMatrix);
           const translationMatrix = this.reduceMat4Precision(
             maths.mat4.fromTranslation(
               maths.mat4.create(),
@@ -402,7 +436,6 @@ export class pathExtruder {
             6,
           );
 
-          console.log(translationMatrix);
           const myTransformedSlice = slice.transform(
             maths.mat4.multiply(
               translationMatrix,
@@ -429,12 +462,6 @@ export class pathExtruder {
     if (direction[0] > 0) {
       angleDiff = angleDiff + Math.PI;
     }
-    console.log('Direction');
-    console.log(direction);
-    console.log('Angle Diff');
-    console.log(angleDiff);
-    console.log('Starting Point');
-    console.log(v0);
 
     ext = rotate([-Math.PI / 2, 0, 0], ext);
     ext = rotate([0, 0, angleDiff], ext);
@@ -490,8 +517,6 @@ export class pathExtruder {
         capStart: false,
         capEnd: false,
         callback: (progress, count, base) => {
-          console.log('Line extrude count: ');
-          console.log(count);
           const posTan: Vec3 = this.reduceVec3Precision(inputShape[count], 6);
 
           const positionArray: Vec3 = posTan;
@@ -662,10 +687,8 @@ export class pathExtruder {
           if (sepPointsArr.length > 1) {
             sepPointsArr.push(p0);
             if (maxAngle === 0) {
-              console.log('pushing to linearSection');
               linearSections.push(sepPointsArr);
             } else {
-              console.log('pushing to bezier section');
               separatedPoints.push(sepPointsArr);
               maxAngle = 0;
             }
@@ -690,12 +713,332 @@ export class pathExtruder {
     } else {
       linearSections.push(sepPointsArr);
     }
-    console.log(separatedPoints);
+
     return {
       endCaps: endCapPoints,
       nonLinear: separatedPoints,
       linear: linearSections,
     };
+  }
+
+  /*
+  //geom3 is a list of polygons, which is itself an object
+  //made of a list of vertices and a plane. A plane is an array of numbers
+  //with the first three being the x, y, z of a normal vector and the fourth being
+  //dist from origin
+  //plan is to extrude triprisms along each segment and on the outside
+  //add the necessary cone section(s)
+  public static customExtrude(points: Vec3[], triangleHeight: number) {
+    let prevLeft: Vec3;
+    let prevRight: Vec3;
+    for (let i = 0; i < points.length; i++) {
+      if (i >= points.length - 1) {
+        //add endcap
+      } else if (i === 0) {
+        const p0 = points[i];
+        const p1 = points[i + 1];
+        //orient first triangle,
+      } else {
+        const p0 = points[i];
+        const p1 = points[i + 1];
+      }
+    }
+  } */
+
+  public static transformShapeAlongPath(
+    shape: Vec2[],
+    frames: IJscadFrenetFrames,
+  ): Vec3[][] {
+    const transformedShapes = [];
+    for (let i = 0; i < frames.tangents.length; i++) {
+      const position = frames.points[i]; // Current point on the path
+
+      // Transform each point of the shape using the Frenet frame
+      //
+      const transformedShape = shape.map((point) => {
+        const frame = {
+          normal: frames.normals[i],
+          binormal: frames.binormals[i],
+          tangent: frames.tangents[i],
+          point: frames.points[i],
+        };
+        const x = point[0];
+
+        const z = point[1];
+
+        const transformedPoint: Vec3 = [
+          x * frame.binormal[0] + z * frame.normal[0] + position[0], // X transformed using binormal & normal
+          x * frame.binormal[1] + z * frame.normal[1] + position[1], // Y transformed using binormal & normal
+          x * frame.binormal[2] + z * frame.normal[2] + position[2], // Z transformed using binormal & normal
+        ];
+
+        return transformedPoint;
+      });
+
+      transformedShapes.push(transformedShape);
+    }
+
+    return transformedShapes;
+  }
+
+  public static createPolygonFromShape(shape: Vec3[]) {
+    // `shape` is an array of Vec3 points (e.g., [[x, y, z], [x, y, z], ...])
+    return poly3.fromPoints(shape);
+  }
+
+  public static createPrism(shape1: Vec3[], shape2: Vec3[]): Geom3 {
+    const shPoly1 = poly3.fromPoints(shape1);
+    const shPoly2 = poly3.fromPoints(shape2.reverse()); //normals pointing opposite
+    const sides = this.createSidePolygons(shape1, shape2);
+    sides.push(shPoly1, shPoly2);
+    return geom3.create(sides);
+  }
+
+  public static createPrisms(shapes: Vec3[][]): Geom3[] {
+    const geos: Geom3[] = [];
+    for (let i = 0; i < shapes.length - 1; i++) {
+      const geo = this.createPrism(shapes[i], shapes[i + 1]);
+      geos.push(geo);
+    }
+    return geos;
+  }
+
+  public static createSidePolygons(shape1: Vec3[], shape2: Vec3[]): Poly3[] {
+    const sidePolygons: Poly3[] = [];
+
+    for (let i = 0; i < shape1.length; i++) {
+      const nextIndex = (i + 1) % shape1.length;
+
+      // Create a quad between corresponding points of shape1 and shape2
+      const polygon1 = poly3.fromPoints([
+        shape1[i],
+        shape1[nextIndex],
+        shape2[nextIndex],
+      ]);
+      const polygon2 = poly3.fromPoints([
+        shape1[i],
+        shape2[nextIndex],
+        shape2[i],
+      ]);
+
+      sidePolygons.push(polygon1, polygon2);
+    }
+
+    return sidePolygons;
+  }
+
+  public static convertToGeom3(shapes: Vec3[][]): Geom3 {
+    const polygons = [];
+
+    // Create top and bottom caps
+    const topPolygon = this.createPolygonFromShape(shapes[0]);
+    const bottomPolygon = this.createPolygonFromShape(
+      shapes[shapes.length - 1],
+    );
+
+    polygons.push(topPolygon, bottomPolygon);
+
+    // Create side polygons connecting the shapes
+    for (let i = 0; i < shapes.length - 1; i++) {
+      const shape1 = shapes[i];
+      const shape2 = shapes[i + 1];
+
+      const sidePolygons = this.createSidePolygons(shape1, shape2);
+      polygons.push(...sidePolygons);
+    }
+
+    // Create a geom3 from the list of polygons
+    return geom3.create(polygons);
+  }
+
+  public static connectShapes(shape1: Vec3[], shape2: Vec3[]): Vec3[][] {
+    const geometry = [];
+
+    for (let i = 0; i < shape1.length; i++) {
+      const nextIndex = (i + 1) % shape1.length;
+
+      // Create triangles or quads between corresponding points on shape1 and shape2
+      geometry.push([
+        shape1[i],
+        shape1[nextIndex],
+        shape2[i],
+        shape2[i],
+        shape1[nextIndex],
+        shape2[nextIndex],
+      ]);
+    }
+
+    return geometry;
+  }
+
+  public static connectPrisms(prisms: Geom3[]): Geom3[] {
+    const geos: Geom3[] = [];
+    for (let i = 0; i < prisms.length; i++) {
+      const nextIndex = (i + 1) % prisms.length; //p.length - 1?
+      const geo = hull(prisms[i], prisms[nextIndex]);
+      geos.push(geo);
+    }
+    return geos;
+  }
+
+  public static async connectPrismManifolds(
+    prisms: Manifold[],
+    maniServ: ManifoldWasmService,
+  ): Promise<Manifold[]> {
+    await maniServ.init();
+    const geos: Manifold[] = [];
+    for (let i = 0; i < prisms.length; i++) {
+      const nextIndex = (i + 1) % prisms.length; //p.length - 1?
+      const geo = maniServ.wasm.Manifold.hull([prisms[i], prisms[nextIndex]]);
+      geos.push(geo);
+    }
+    return geos;
+  }
+
+  public static extrudeShapeAlongPath(
+    shape: Vec2[],
+    pathPoints: Vec3[],
+  ): mVec3[][] {
+    // Step 1: Compute Frenet frames
+    const frames = this.calculateFrenetFrames(pathPoints);
+
+    // Step 2: Transform the shape along the path
+    const transformedShapes = this.transformShapeAlongPath(shape, frames);
+    const prisms = this.createPrisms(transformedShapes);
+    const prismsPoints: mVec3[][] = [];
+    prisms.forEach((prism) => {
+      const polygons = prism.polygons;
+      const points: mVec3[] = [];
+      polygons.forEach((polygon) => {
+        polygon.vertices.forEach((vertex) => {
+          const retPt: mVec3 = [vertex[0], vertex[1], vertex[2]];
+          points.push(retPt);
+        });
+      });
+      const uniquePts = this.removeDuplicateVertices(points);
+
+      prismsPoints.push(uniquePts);
+    });
+
+    return prismsPoints;
+  }
+
+  public static removeDuplicateVertices(vertices: mVec3[]): mVec3[] {
+    const vertexMap = new Map<string, Vec3>();
+    const duplicates: mVec3[] = [];
+    const originals: mVec3[] = [];
+
+    vertices.forEach((vertex) => {
+      const key = `${vertex[0]}_${vertex[1]}_${vertex[2]}`; // Unique key for each vertex
+
+      if (vertexMap.has(key)) {
+        duplicates.push(vertex); // If vertex already exists, add to duplicates list
+      } else {
+        vertexMap.set(key, vertex); // Add unique vertex to the map
+        originals.push(vertex);
+      }
+    });
+
+    return originals;
+  }
+
+  public static unionChain(hulls: Geom3[]): Geom3 {
+    let geo: Geom3 = hulls[0];
+    for (let i = 1; i < hulls.length; i++) {
+      geo = union(geo, hulls[i]);
+    }
+    return geo;
+  }
+
+  public static async unionChainMani(
+    hulls: Manifold[],
+    maniServ: ManifoldWasmService,
+  ): Promise<Manifold> {
+    await maniServ.init();
+    let geo: Manifold = hulls[0];
+    for (let i = 1; i < hulls.length; i++) {
+      geo = maniServ.csgUnion(geo, hulls[i]);
+    }
+    return geo;
+  }
+
+  public static randomTranslate(hulls: Geom3[]): Geom3[] {
+    const geos: Geom3[] = [];
+    for (const hull of hulls) {
+      const randx = Math.random() * 200 - 100;
+      const randy = Math.random() * 200 - 100;
+      const randz = Math.random() * 200 - 100;
+      const newHull = translate([randx, randy, randz], hull);
+      geos.push(newHull);
+    }
+    return geos;
+  }
+
+  public static calculateTangents(points: Vec3[]) {
+    const tangents = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const P1 = points[i];
+      const P2 = points[i + 1];
+      const tangent = this.normalize(this.subtract(P2, P1));
+      tangents.push(tangent);
+    }
+    return tangents;
+  }
+
+  public static normalize(v: Vec3): Vec3 {
+    const length = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    return [v[0] / length, v[1] / length, v[2] / length];
+  }
+
+  public static calculateNormals(tangents: Vec3[], xyPlane: boolean = true) {
+    const normals = [];
+    const arbitraryVector = [0, 0, 1] as Vec3; // Any vector not parallel to the tangent
+    for (let i = 0; i < tangents.length; i++) {
+      let normal: Vec3;
+      if (xyPlane) {
+        normal = [0, 0, 1] as Vec3;
+      } else {
+        const tangent = tangents[i];
+        normal = this.crossProduct(tangent, arbitraryVector);
+        normal = this.normalize(normal);
+      }
+
+      normals.push(normal);
+    }
+    return normals;
+  }
+
+  public static crossProduct(v1: Vec3, v2: Vec3): Vec3 {
+    return [
+      v1[1] * v2[2] - v1[2] * v2[1],
+      v1[2] * v2[0] - v1[0] * v2[2],
+      v1[0] * v2[1] - v1[1] * v2[0],
+    ] as Vec3;
+  }
+
+  public static calculateBinormals(tangents: Vec3[], normals: Vec3[]) {
+    const binormals = [];
+    for (let i = 0; i < tangents.length; i++) {
+      const tangent = tangents[i];
+      const normal = normals[i];
+      const binormal = this.crossProduct(tangent, normal);
+      binormals.push(binormal);
+    }
+    return binormals;
+  }
+
+  public static calculateFrenetFrames(points: Vec3[]): IJscadFrenetFrames {
+    const tangents = this.calculateTangents(points);
+    const normals = this.calculateNormals(tangents);
+    const binormals = this.calculateBinormals(tangents, normals);
+
+    const frames = {
+      tangents: tangents,
+      normals: normals,
+      binormals: binormals,
+      points: points,
+    };
+    return frames;
   }
 
   public static getBezierControlPoints(points: Vec3[]): Vec3[] {

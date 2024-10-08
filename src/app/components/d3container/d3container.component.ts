@@ -243,7 +243,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     //this.addNumberDialInstance(60, 20);
     //this.addNumberDialInstance(100, 20);
     //this.addText(0, 60, 10, 'Life Total', 8);
-    this.addPathText(0, 5, 10, 'Victor Eggos', 8);
+    this.addPathText(0, 5, 10, 'abcdef', 8);
+    this.addPathText(0, 5, 30, 'ghijkl', 8);
+    //this.addPathText(0, 5, 30, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
+    //this.addPathText(0, 5, 50, '0123456789', 8);
+    this.addPathText(0, 5, 50, 'mnopqr', 8);
     //this.addPathText(0, 60, 30, 'Life Total', 8);
     /*this.addSlider(2, 90, 20, 10);
     this.addSlider(3, 90, 20, 20);
@@ -1234,8 +1238,9 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           return { char: inputText[index], data: charPath.toPathData(5) };
         });
 
-        pathDataArr.forEach((charPath) => {
+        pathDataArr.forEach((charPath, index) => {
           const extraPathData = this.addExtraPointsToLines(charPath.data);
+          //const extraPathData = charPath.data;
           const newPathData = this.reducePrecisionInPathData(extraPathData);
           //console.log(newPathData);
           const textGroup = d3
@@ -1260,6 +1265,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
               textGroupNode!,
               charPath.char,
               newPathData,
+              index,
+              bbox.x,
+              bbox.y,
+              bbox.width,
+              bbox.height,
             ],
             editorData: newEditorData,
           });
@@ -1285,7 +1295,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
    * @param {number} density - number indicating density of points along a line. I think it means max dist
    * between points on a line, so that if you have a really short line, and a really long line, they
    * don't both end up with 12 segments. Regardless, smaller number here means more segments
-   * which means better voronoi diagram.
+   * which means better voronoi diagram. Also better multihulls
    */
   public addExtraPointsToLines(pathData: string, density = 0.1) {
     //let lineCommandCount = 0;
@@ -1328,7 +1338,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
             //console.log('Pushing new command: ' + newCommand);
             mergedCommands.push(newCommand);
           }
-        } else if (type === 'Z') {
+        } else if (type === 'Zebras Are Cool') {
           const currentPos = positions[0];
           const prevPos = positions[i - 1];
 
@@ -1353,6 +1363,11 @@ export class D3containerComponent implements OnInit, AfterViewInit {
           }
           mergedCommands.push('Z');
         } else {
+          if (type === 'M') {
+            console.log(commands[Math.max(i - 1, 0)]);
+            console.log(commands[i]);
+            console.log(commands[Math.min(i + 1, commands.length - 1)]);
+          }
           //console.log('Type of commands[i]: ' + typeof commands[i]);
           mergedCommands.push(commands[i]);
         }

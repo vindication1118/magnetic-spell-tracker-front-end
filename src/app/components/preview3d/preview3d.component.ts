@@ -1,3 +1,4 @@
+import { CharShapeGeometry } from './../../interfaces/char-shape-geometry';
 import { ManifoldWasmService } from './../../services/manifold-wasm.service';
 import {
   AfterViewInit,
@@ -31,6 +32,7 @@ import * as d3 from 'd3';
 import { PathPosition } from '../../interfaces/path-position';
 import { CommandHandler } from '../../utils/SVGUtils';
 import { CharShape } from '../../interfaces/char-shape';
+import { CharShapeData } from '../../interfaces/char-shape-data';
 //import { CSG } from '../../utils/CSGMesh';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Manifold } from 'manifold-3d';
@@ -39,7 +41,11 @@ import { Manifold } from 'manifold-3d';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 import { pathExtruder } from '../../utils/jscad-path-extrude';
 //4import { Geom3 } from '@jscad/modeling/src/geometries/types';
-import { Vec3 } from '@jscad/modeling/src/maths/vec3';
+import { Vec3 } from 'manifold-3d';
+import Geom3 from '@jscad/modeling/src/geometries/geom3/type';
+
+//import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
+
 @Component({
   selector: 'app-preview3d',
   standalone: true,
@@ -562,95 +568,217 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return charVec3s;
   }
 
-  public charShapesToVec3s(shapes: CharShape[]): Vec3[][] {
-    const charVec3s: Vec3[][] = [];
+  public charShapesToVec3s(shapes: CharShape[]): CharShapeData[] {
+    const data: CharShapeData[] = [];
     shapes.forEach((sh) => {
+      const char = sh.char;
+      const ind = sh.index;
       const shPoints: Vec3[] = [];
       sh.shape.forEach((pt) => {
         shPoints.push([pt.x, pt.y, 0]);
       });
-      charVec3s.push(shPoints);
+      const holesPts: Vec3[][] = [];
       sh.holes.forEach((hole) => {
         const holePoints: Vec3[] = [];
         hole.forEach((pt) => {
           holePoints.push([pt.x, pt.y, 0]);
         });
-        charVec3s.push(holePoints);
+        holesPts.push(holePoints);
       });
+      const charData: CharShapeData = {
+        shape: shPoints,
+        holes: holesPts,
+        character: char,
+        index: ind,
+      };
+      data.push(charData);
     });
-    return charVec3s;
+    return data;
+  }
+
+  public async geosToManifold(geos: Geom3[]): Promise<Manifold> {
+    const tMeshes = await this.geosToThrees(geos);
+    await this.manifoldService.init();
+    const tManifolds = tMeshes.map((tmesh) => {
+      return this.manifoldService.threeMesh2manifold(tmesh);
+    });
+    let mani = tManifolds[0];
+    for (let i = 1; i < tManifolds.length; i++) {
+      mani = this.manifoldService.csgUnion(mani, tManifolds[i]);
+    }
+    return mani;
+  }
+
+  public async geosToThrees(geos: Geom3[]): Promise<THREE.Mesh[]> {
+    const meshes: THREE.Mesh[] = [];
+    for (const geo of geos) {
+      meshes.push(await this.geoToThree(geo));
+    }
+    return meshes;
+  }
+
+  public async geoToThree(geo: Geom3): Promise<THREE.Mesh> {
+    const tjsGeo = await this.tracker.convertJSCADToThree(
+      geo,
+      0xffff00,
+      true,
+      false,
+    );
+    return tjsGeo[0];
   }
 
   public async generateLayer3TextExtrusionsTri() {
     await this.manifoldService.init();
-    const charDepth = 1;
+    const charDepth = 2;
+    let prevBBox: { min: Vec3; max: Vec3 } = {
+      min: [0, 0, 0],
+      max: [0, 0, 0],
+    };
+    const unionedLetterBlocks: Manifold[] = [];
+    const unionedRandomBlocks: Manifold[] = [];
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
-        console.log(module.data);
         const textMeshTri = this.generateTextShapes(
           module['data'][3] as unknown as string,
         );
+        const char: string = module['data'][4] as unknown as string;
+        const ind: number = module['data'][6] as unknown as number;
         const extraPoints: CharShape[] = [];
+
         textMeshTri.forEach((sh) => {
-          const newShape = this.tracker.addExtraPoints(sh.getPoints(20));
-          const newHoles = sh.getPointsHoles(20).map((pts) => {
-            return this.addExtraPoints(pts);
+          const newShape = sh.getPoints(20);
+
+          const newHoles = sh.getPointsHoles(20);
+          extraPoints.push({
+            shape: newShape,
+            holes: newHoles,
+            char: char,
+            index: ind,
           });
-          extraPoints.push({ shape: newShape, holes: newHoles });
         });
         const otherShapes = this.charShapesToVec3s(extraPoints);
-        const myGeo3s = pathExtruder.testExtrude(2, otherShapes);
-        myGeo3s.forEach((geo) => {
-          this.tracker
-            .convertJSCADToThree(geo, 0xffff00, true, true)
-            .then((res) => {
-              res.forEach((mesh) => {
-                this.scene.add(mesh);
-              });
-            });
+        const maniprismPts = pathExtruder.testExtrude(
+          charDepth + 1,
+          otherShapes,
+        );
+        const unionedHulls = this.CharShapeGeosToManifolds(maniprismPts);
+        //for (const newHull of unionedHulls) {
+        //  this.addMeshAndWireFrame(newHull, true);
+        //}
+        const unions: Manifold[] = [];
+        unionedHulls.forEach((char) => {
+          const charGeoArr = char.decompose();
+          unions.push(...charGeoArr);
         });
+
         //textModule['meshJSON'] = textMesh;
         const textModule = module as TextModule;
-        //console.log(textModule.data);
-        /*
+        //console.log(textModule.data);*/
+
         const textMeshVertArr = this.generateTextMeshesForIntersect(
           module['data'][3] as unknown as string,
           textModule,
           charDepth,
         );
-        const manifolds: Manifold[] = await this.tracker.getAllExtrusions(
-          this.manifoldService,
-          textMeshTri,
-          charDepth,
-        );
+        const textVertMani: Manifold[] = [];
+        textMeshVertArr.forEach((char) => {
+          const vertMani = this.manifoldService.threeMesh2manifold(char);
+          //const vertManiArr = vertMani.decompose();
+          textVertMani.push(vertMani);
+        });
 
-        for (let i = 0; i < manifolds.length; i++) {
-          let maniVert = this.manifoldService.threeMesh2manifold(
-            textMeshVertArr[i],
-          );
-          const translate = -(charDepth / 2 + 0.1);
+        console.log(
+          'Unioned Hulls length: ' +
+            unionedHulls.length +
+            ' textMeshVert length: ' +
+            textVertMani.length,
+        );
+        let dotBox: { min: Vec3; max: Vec3 };
+
+        //lowercase i and j each are two parts, so loop here to include them
+        for (let i = 0; i < unionedHulls.length; i++) {
+          const firstLoop: boolean = ind === 0 && i === 0;
+          if (firstLoop) {
+            prevBBox = {
+              min: [0, 0, 0],
+              max: [0, 0, 0],
+            };
+          }
+          let maniVert = textVertMani[i];
+          const translate = -charDepth;
           maniVert = maniVert.translate([0, 0, translate]);
-          const maniFinal = this.manifoldService.csgSubtraction(
+          //const maniToThreeVert = this.addMeshAndWireFrame(maniVert);
+          let maniFinal = this.manifoldService.csgSubtraction(
             maniVert,
-            manifolds[i],
+            unionedHulls[i],
           );
-          const maniMesh = this.manifoldService.manifold2ThreeMesh(
+          maniFinal.genus();
+          maniFinal = maniFinal.scale([1, 1, -1]);
+          maniFinal.genus();
+          maniFinal = maniFinal.rotate([90, 0, 0]);
+          maniFinal.genus();
+          const bbox = maniFinal.boundingBox();
+          const min = bbox.min;
+          const max = bbox.max;
+          const prevMax = prevBBox!.max;
+          //const prevMin = prevBBox!.min;
+          const depth = 5;
+
+          let zHeight = max[2] - min[2];
+          let zTranslate = min[2];
+          /** i dot goes before i base because xMin on both is equivalent so zMin is the tiebreaker
+           *  j dot goes after j base because xMin on j base is less than xMin on j dot
+           * may need to generalize around these rules
+           */
+          if (i > 0 && char === 'i') {
+            zHeight = max[2] - dotBox!.max[2]; //i dot goes before base
+            zTranslate = dotBox!.max[2];
+          }
+          if (i > 0 && char === 'j') {
+            zHeight = dotBox!.min[2] - min[2];
+            zTranslate = min[2];
+          }
+          console.log('Prev Max: ' + prevMax + ' Current Max: ' + max);
+          const cubeSize: Vec3 = [max[0] - prevMax[0], depth, zHeight];
+
+          let randomBlock = this.manifoldService.wasm.Manifold.cube(
+            cubeSize,
+            false,
+          ).translate([prevMax[0], -depth - 0.1, zTranslate]);
+          const ranBlockForUnion = this.manifoldService.wasm.Manifold.cube(
+            [cubeSize[0] - 0.1, cubeSize[1] * 2, cubeSize[2] - 0.1],
+            false,
+          ).translate([prevMax[0] + 0.05, -depth * 1.5, zTranslate + 0.05]);
+          unionedRandomBlocks.push(ranBlockForUnion);
+          randomBlock = randomBlock.refine(50);
+
+          //const simp = new SimplifyModifier();
+          //const simplerGeo = simp.modify(threeMesh.geometry, vertexCount / 5);
+
+          //this.addMeshAndWireFrameThree(simplerGeo, true);
+
+          randomBlock = this.manifoldService.csgSubtraction(
+            randomBlock,
             maniFinal,
-            new THREE.MeshStandardMaterial({
-              transparent: true,
-              opacity: 0.65,
-            }),
           );
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const maniMeshWire = new THREE.Mesh(
-            maniMesh.geometry,
-            new THREE.MeshBasicMaterial({
-              color: 0x0000ff,
-              wireframe: true,
-            }),
+          randomBlock.genus();
+          console.log(
+            'i: ' + i + ' unionedHulls len-1: ' + (unionedHulls.length - 1),
           );
-          //this.scene.add(maniMesh, maniMeshWire);
-        } */
+          //this.addMeshAndWireFrame(maniFinal, true);
+          if (i === unionedHulls.length - 1) {
+            console.log('updating prevBBox');
+            prevBBox = { min: min, max: max };
+          }
+          if (unionedHulls.length > 0) {
+            dotBox = { min: min, max: max };
+          }
+          unionedLetterBlocks.push(randomBlock);
+
+          //this.addMeshAndWireFrame(randomBlock, true);
+        }
+
+        this.batchDelete(unionedHulls);
 
         //const vert = textMeshVertArr[index];
         //const vertCSG = CSG.fromMesh(vert);
@@ -665,8 +793,227 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         //await this.sleep(5000);
       }
     }
+    const unionedLetterBlock = this.unionChainMani(unionedLetterBlocks);
+    const unionedRandomBlock = this.unionChainMani(unionedRandomBlocks);
+    let panel = this.manifoldService.wasm.Manifold.cube(
+      [100, 5, 100],
+      false,
+    ).translate([0, -5 - 0.1, 0]);
+    panel = this.manifoldService.csgSubtraction(panel, unionedRandomBlock);
+    panel.genus();
+    const iPanel = this.manifoldService.csgUnion(unionedLetterBlock, panel);
+    this.addMeshAndWireFrame(iPanel, true);
+    //this.addMeshAndWireFrame(unionedLetterBlock, true);
     //console.log(this.modulesList);
     this.tracker.updateModulesList(this.modulesList);
+  }
+
+  public CharShapeGeosToManifolds(csGeos: CharShapeGeometry[]): Manifold[] {
+    const mani: Manifold[] = [];
+    for (const csGeo of csGeos) {
+      const charHulls: Manifold[] = [];
+      console.log(
+        'Processing character ' +
+          csGeo.character +
+          ' with index ' +
+          csGeo.index,
+      );
+      for (const prisms of csGeo.shapeAndHoles) {
+        const hulls: Manifold[] = [];
+        for (const prism of prisms) {
+          const prismHull = this.manifoldService.wasm.Manifold.hull(prism);
+          prismHull.genus();
+          hulls.push(prismHull);
+        }
+        const doubleHulls = this.connectPrismManifolds(hulls);
+        this.batchDelete(hulls);
+        const unionedHulls = this.unionChainMani(doubleHulls);
+        this.batchDelete(doubleHulls);
+        charHulls.push(unionedHulls);
+      }
+      const unioned = this.unionChainMani(charHulls);
+      unioned.genus();
+      mani.push(unioned);
+      //this.batchDelete(charHulls);
+    }
+
+    return mani;
+  }
+
+  public addMeshAndWireFrame(mani: Manifold, debug: boolean = false) {
+    let meshTransparent: THREE.Mesh;
+
+    meshTransparent = this.manifoldService.manifold2ThreeMesh(
+      mani,
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.65,
+      }),
+    );
+    if (debug) {
+      const geometry = meshTransparent.geometry;
+      // Loop through the faces and assign a random color
+      const color = new THREE.Color();
+      const positionAttribute = geometry.getAttribute('position');
+      const colors = [];
+
+      for (let i = 0; i < positionAttribute.count; i += 3) {
+        // Generate a random color
+        const min = 0xaaaaaa;
+        const max = 0xeeeeee;
+        const randomColor = Math.random() * (max - min) + min;
+        color.set(randomColor);
+
+        // Assign the color to the three vertices of the face
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+      }
+
+      // Add the color attribute to the geometry
+      geometry.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(colors, 3),
+      );
+
+      const faceMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.65,
+        vertexColors: true,
+      });
+
+      // Create the mesh
+
+      meshTransparent = new THREE.Mesh(geometry, faceMaterial);
+    }
+
+    const meshWireframe = this.manifoldService.manifold2ThreeMesh(
+      mani,
+      new THREE.MeshBasicMaterial({
+        color: 0x0000ff,
+        wireframe: true,
+      }),
+    );
+    this.scene.add(meshTransparent, meshWireframe);
+  }
+
+  public addMeshAndWireFrameThree(geom: THREE.BufferGeometry, debug = false) {
+    let meshTransparent: THREE.Mesh;
+    meshTransparent = new THREE.Mesh(
+      geom,
+      new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.65,
+      }),
+    );
+
+    if (debug) {
+      const geometry = meshTransparent.geometry;
+      // Loop through the faces and assign a random color
+      const color = new THREE.Color();
+      const positionAttribute = geometry.getAttribute('position');
+      const colors = [];
+
+      for (let i = 0; i < positionAttribute.count; i += 3) {
+        // Generate a random color
+        const min = 0xaaaaaa;
+        const max = 0xeeeeee;
+        const randomColor = Math.random() * (max - min) + min;
+        color.set(randomColor);
+
+        // Assign the color to the three vertices of the face
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+        colors.push(color.r, color.g, color.b);
+      }
+
+      // Add the color attribute to the geometry
+      geometry.setAttribute(
+        'color',
+        new THREE.Float32BufferAttribute(colors, 3),
+      );
+
+      const faceMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0.65,
+        vertexColors: true,
+      });
+
+      // Create the mesh
+
+      meshTransparent = new THREE.Mesh(geometry, faceMaterial);
+    }
+
+    const meshWireframe = new THREE.Mesh(
+      geom,
+      new THREE.MeshBasicMaterial({
+        color: 0x0000ff,
+        wireframe: true,
+      }),
+    );
+
+    this.scene.add(meshTransparent, meshWireframe);
+  }
+
+  public batchDelete(mani: Manifold[]) {
+    for (let i = 0; i < mani.length; i++) {
+      mani[i].delete();
+    }
+  }
+
+  public connectPrismManifolds(prisms: Manifold[]): Manifold[] {
+    const geos: Manifold[] = [];
+    for (let i = 0; i < prisms.length; i++) {
+      let nextIndex = i + 1;
+      if (i === prisms.length - 1) {
+        nextIndex = 0;
+      }
+      const geo = this.manifoldService.wasm.Manifold.hull([
+        prisms[i],
+        prisms[nextIndex],
+      ]);
+      geo.genus();
+      geos.push(geo);
+    }
+    return geos;
+  }
+
+  public doubleHullPts(prisms: Manifold[]): Vec3[][] {
+    const geos: Vec3[][] = [];
+    prisms.forEach((pr, i) => {
+      let nextIndex = i + 1;
+      if (i === prisms.length - 1) {
+        nextIndex = 0;
+      }
+      const geo = this.manifoldService.wasm.Manifold.hull([
+        pr,
+        prisms[nextIndex],
+      ]);
+      const geoMesh = geo.getMesh();
+      const geoPts = geoMesh.vertProperties;
+      const numProps = geoMesh.numProp;
+      const retPts: Vec3[] = [];
+      for (let i = 0; i < geoPts.length - numProps; i = i + numProps) {
+        const newVec3: Vec3 = [geoPts[i], geoPts[i + 1], geoPts[i + 2]];
+        retPts.push(newVec3);
+      }
+      geos.push(retPts);
+      //geo.delete();
+    });
+
+    return geos;
+  }
+
+  public unionChainMani(hulls: Manifold[]): Manifold {
+    let geo: Manifold = hulls[0];
+    for (let i = 1; i < hulls.length; i++) {
+      geo = this.manifoldService.csgUnion(geo, hulls[i]);
+      geo.genus();
+    }
+    //this.batchDelete(hulls);
+    return geo;
   }
 
   // Function to convert a Three.js geometry into a format usable by Manifold-3D
@@ -825,7 +1172,13 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      */
     //console.log(shapes);
     const myShapes = shapes.map((shape) => {
-      return shape.extractPoints(5);
+      const shapeHoles = shape.extractPoints(5);
+      return {
+        shape: shapeHoles.shape,
+        holes: shapeHoles.holes,
+        char: moduleInfo.data[4] as unknown as string,
+        index: moduleInfo.data[6] as unknown as number,
+      };
       //const allPoints = [...points.shape, ...points.holes.flat()];
       //return allPoints;
     });
@@ -848,8 +1201,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
    * work properly. All the CSG stuff is the expensive stuff anyway, so we build the mesh here then merge it
    * in the web worker
    */
-
-  public generateTextCharShapes(svgPathNode: string): CharShape[] {
+  /*
+  public generateTextCharShapes(svgPathNode: string, char: 'string', ind: number): CharShape[] {
     //const layer3Height =
     // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
     //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
@@ -869,7 +1222,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      * each continuous non whitespace character or continuous component of a character
      * (like i is 2 because of the i dot) in our string has its own array of
      * {x: xval, y: yval} objects
-     */
+STARSLASHHERE
     //console.log(shapes);
     const myShapes = shapes.map((shape) => {
       return shape.extractPoints(5);
@@ -877,8 +1230,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       //return allPoints;
     });
 
-    return myShapes;
-  }
+    return { shape: myShapes.shape, holes: myShapes.holes, };
+  } */
 
   public generateTextShapes(svgPathNode: string): THREE.Shape[] {
     //const layer3Height =
@@ -901,7 +1254,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      * (like i is 2 because of the i dot) in our string has its own array of
      * {x: xval, y: yval} objects
      */
-    console.log(shapes);
 
     return shapes;
   }
@@ -919,10 +1271,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     return coordArr;
   }
 
-  public generateVoronoiFromText(
-    shapes: { shape: THREE.Vec2[]; holes: THREE.Vec2[][] }[],
-    moduleInfo: TextModule,
-  ) {
+  public generateVoronoiFromText(shapes: CharShape[], moduleInfo: TextModule) {
     //console.log(this.svgGroup);
     const zoomableGroup = this.svgGroup.select('g');
     for (const shape of shapes) {

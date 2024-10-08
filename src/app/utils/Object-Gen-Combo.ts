@@ -815,8 +815,11 @@ let l1BJSC = this.convertThreeToJSCAD(layer1Base);
 
       // Create the mesh
       const meshArr: THREE.Mesh[] = [];
-      meshArr.push(new THREE.Mesh(geometry, wireFrameMaterial));
       meshArr.push(new THREE.Mesh(geometry, faceMaterial));
+      if (wireframeOut) {
+        meshArr.push(new THREE.Mesh(geometry, wireFrameMaterial));
+      }
+
       return meshArr;
     }
     return Array(

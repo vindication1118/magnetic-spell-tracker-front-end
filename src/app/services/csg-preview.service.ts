@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@angular/core';
 import { TrackerModule } from '../interfaces/tracker-module';
-import { CSG } from '../utils/CSGMesh';
+import { CSG } from '../utils/three/CSGMesh';
 import * as THREE from 'three';
 
 import { EditorData } from '../interfaces/editor-data';

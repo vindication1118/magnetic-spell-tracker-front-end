@@ -39,7 +39,7 @@ import { Manifold } from 'manifold-3d';
 //import booleans from '@jscad/modeling/src/operations/booleans';
 //import { Geom3 } from '@jscad/modeling/src/geometries/types';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
-import { pathExtruder } from '../../utils/jscad-path-extrude';
+import { pathExtruder } from '../../utils/jscad/jscad-path-extrude';
 //4import { Geom3 } from '@jscad/modeling/src/geometries/types';
 import { Vec3 } from 'manifold-3d';
 import Geom3 from '@jscad/modeling/src/geometries/geom3/type';
@@ -779,18 +779,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         }
 
         this.batchDelete(unionedHulls);
-
-        //const vert = textMeshVertArr[index];
-        //const vertCSG = CSG.fromMesh(vert);
-        //const triCSG = CSG.fromMesh(mesh);
-        //const subtractCSG = this.manifoldService.threeSubtraction(vert, mesh);
-        //const material = new THREE.MeshStandardMaterial({ color: 0xff00ff });
-        //const intersectGeom = CSG.toGeometry(intersectCSG);
-        //const intersectMesh = new THREE.Mesh(intersectGeom, material);
-        //this.scene.add(subtractCSG);
-        //this.scene.add(maniMesh);
-        //this.scene.add(maniMeshWire);
-        //await this.sleep(5000);
       }
     }
     const unionedLetterBlock = this.unionChainMani(unionedLetterBlocks);

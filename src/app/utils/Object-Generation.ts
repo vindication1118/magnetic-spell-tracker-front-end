@@ -1,5 +1,5 @@
 import { TrackerModule, TextModule } from '../interfaces/tracker-module';
-import { CSG } from './CSGMesh';
+import { CSG } from './three/CSGMesh';
 import * as THREE from 'three';
 import { EditorData } from '../interfaces/editor-data';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';

@@ -27,6 +27,17 @@
             "prefix": "app",
             "style": "kebab-case"
           }
+        ],
+        "import/no-restricted-paths": [
+          "off",
+          {
+            "zones": [
+              {
+                "target": "./node_modules/manifold-3d",
+                "allowed": ["./src"]
+              }
+            ]
+          }
         ]
       }
     },

@@ -276,8 +276,8 @@ export class WebGpuOps {
   }
 
   async runComputeShaderAndCreateGeometry(
-    pointsA: (PathPosition | THREE.Vec2)[],
-    pointsB: (PathPosition | THREE.Vec2)[],
+    pointsA: (PathPosition | THREE.Vector2)[],
+    pointsB: (PathPosition | THREE.Vector2)[],
   ): Promise<geom3.Geom3> {
     if (!this.device) {
       throw new Error('GPU device not initialized.');

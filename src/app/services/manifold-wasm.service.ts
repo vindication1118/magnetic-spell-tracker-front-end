@@ -1,12 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // wasm-loader.service.ts
 import { Injectable } from '@angular/core';
-import Module, {
-  Manifold,
-  ManifoldToplevel,
-  Mesh,
-  TManifold,
-} from 'manifold-3d';
+import Module, { Manifold, ManifoldToplevel, Mesh } from 'manifold-3d';
 import * as THREE from 'three';
 @Injectable({
   providedIn: 'root',
@@ -178,7 +173,7 @@ export class ManifoldWasmService {
     return mesh;
   }
 
-  public mesh2Manifold(mesh: Mesh): TManifold {
+  public mesh2Manifold(mesh: Mesh): Manifold {
     const mani = new this.wasm.Manifold(mesh);
     //console.log('Is it a Manifold?');
     //console.log(mani instanceof Manifold);
@@ -194,7 +189,7 @@ export class ManifoldWasmService {
     return result;
   }
 
-  public csgSubtraction(manifold1: TManifold, manifold2: TManifold): Manifold {
+  public csgSubtraction(manifold1: Manifold, manifold2: Manifold): Manifold {
     const result = this.wasm.Manifold['difference'](manifold1, manifold2);
     return result;
   }

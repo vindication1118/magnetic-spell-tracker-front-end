@@ -1,15 +1,10 @@
-/* To learn more about this file see: https://angular.io/config/tsconfig. */
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/worker",
-    "lib": [
-      "es2018",
-      "webworker"
-    ],
-    "types": []
+    "lib": ["es2018", "webworker"],
+    "types": ["./node_modules/@webgpu/types", "./node_modules/@types/**"]
   },
-  "include": [
-    "src/**/*.worker.ts"
-  ]
+  "include": ["src/**/*.worker.ts"]
 }

@@ -1,25 +1,8 @@
-<app-header></app-header>
-<nav>
-  <ul>
-    <li>
-      <a
-        routerLink="/testgpu"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >First Component</a
-      >
-    </li>
-    <li>
-      <a
-        routerLink="/editor"
-        routerLinkActive="active"
-        ariaCurrentWhenActive="page"
-        >Second Component</a
-      >
-    </li>
-  </ul>
-</nav>
-<!-- The routed views render in the <router-outlet>-->
-<router-outlet></router-outlet>
+<div class="wrapper no-padding">
+  <app-header></app-header>
+  <div class="content">
+    <router-outlet></router-outlet>
+  </div>
 
-<app-footer></app-footer>
+  <app-footer class="footer no-padding"></app-footer>
+</div>

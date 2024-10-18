@@ -7,18 +7,10 @@ import { Vec3 } from '@jscad/modeling/src/maths/vec3';
 //import _ from 'lodash';
 
 export class WebGpuOps {
-  static runComputeShaderAndCreateGeometry() {
-    //exterior: (THREE.Vec2 | PathPosition)[], //interior: (THREE.Vec2 | PathPosition)[],
-    throw new Error('Method not implemented.');
-  }
-  static initialize() {
-    throw new Error('Method not implemented.');
-  }
+  private static device: GPUDevice | null = null;
   constructor() {}
 
-  private device: GPUDevice | null = null;
-
-  public async initialize(): Promise<void> {
+  public static async initialize(): Promise<void> {
     if (!navigator.gpu) {
       throw new Error('WebGPU is not supported in this browser.');
     }
@@ -31,7 +23,7 @@ export class WebGpuOps {
     this.device = await adapter.requestDevice();
   }
 
-  public async selectOptimalWorkgroupSize(): Promise<number> {
+  public static async selectOptimalWorkgroupSize(): Promise<number> {
     if (!this.device) {
       throw new Error('GPU device not initialized.');
     }
@@ -60,7 +52,7 @@ export class WebGpuOps {
     return optimalWorkgroupSize;
   }
 
-  convertToShaderFormat(
+  public static convertToShaderFormat(
     points: (PathPosition | THREE.Vector2)[],
     includeVertexIndex: boolean,
   ): Float32Array {
@@ -77,14 +69,16 @@ export class WebGpuOps {
     return new Float32Array(flatArray);
   }
 
-  createSegmentBuffer(points: (PathPosition | THREE.Vector2)[]): Float32Array {
+  public static createSegmentBuffer(
+    points: (PathPosition | THREE.Vector2)[],
+  ): Float32Array {
     const numSegments = points.length;
     const numFloatsPerSegment = 8; //has to be a vec4 for alignment reasons, 4th is just gonna be dummy
     const totalLen = numSegments * numFloatsPerSegment;
     return new Float32Array(totalLen);
   }
 
-  createBufferFromPoints(
+  public static createBufferFromPoints(
     points: (PathPosition | THREE.Vector2)[],
     includeVertexIndex: boolean,
     mode: number,
@@ -115,7 +109,7 @@ export class WebGpuOps {
   }
 
   // Method to convert output buffer to array of 3D vectors (Vec3f equivalent)
-  static convertBufferToVec3Array(
+  public static convertBufferToVec3Array(
     outputBuffer: Float32Array,
   ): [number, number, number][] {
     const vectors: [number, number, number][] = [];
@@ -132,7 +126,7 @@ export class WebGpuOps {
     return vectors;
   }
 
-  static convertToVec3Array(
+  public static convertToVec3Array(
     points: (THREE.Vector2 | PathPosition)[],
   ): [number, number, number][] {
     const vec3Array: [number, number, number][] = [];
@@ -149,7 +143,7 @@ export class WebGpuOps {
     return vec3Array;
   }
 
-  static convertPathPosArrayToTHREEVec3(
+  public static convertPathPosArrayToTHREEVec3(
     points: (THREE.Vector2 | PathPosition)[],
   ) {
     const vec3Arr: THREE.Vector3[] = [];
@@ -160,7 +154,7 @@ export class WebGpuOps {
     return vec3Arr;
   }
 
-  public getBinaryFloatToInt(wrongFloat: number): number {
+  public static getBinaryFloatToInt(wrongFloat: number): number {
     // Create an ArrayBuffer with enough bytes to store a float32 (4 bytes)
     const buffer = new ArrayBuffer(4);
 
@@ -176,7 +170,7 @@ export class WebGpuOps {
     return intRepresentation;
   }
 
-  public checkEndianness(): boolean {
+  public static checkEndianness(): boolean {
     // Create an ArrayBuffer with 4 bytes (32 bits)
     const buffer = new ArrayBuffer(4);
 
@@ -194,7 +188,7 @@ export class WebGpuOps {
     }
   }
 
-  public createMeshFromShaderOutput(
+  public static createMeshFromShaderOutput(
     pointsA: [number, number, number][],
     pointsB: [number, number, number][],
     updatedPointsA: number[],
@@ -243,7 +237,7 @@ export class WebGpuOps {
     return jscad.geometries.geom3.create(polygons);
   }
 
-  public createMeshFromShaderSegments(segments: number[]): geom3.Geom3 {
+  public static createMeshFromShaderSegments(segments: number[]): geom3.Geom3 {
     const polygons = [];
     const numSegments = segments.length / 8; //one higher than actual max
     for (let i = 0; i < numSegments; i++) {
@@ -275,7 +269,7 @@ export class WebGpuOps {
     return jscad.geometries.geom3.create(polygons);
   }
 
-  async runComputeShaderAndCreateGeometry(
+  public static async runComputeShaderAndCreateGeometry(
     pointsA: (PathPosition | THREE.Vector2)[],
     pointsB: (PathPosition | THREE.Vector2)[],
   ): Promise<geom3.Geom3> {

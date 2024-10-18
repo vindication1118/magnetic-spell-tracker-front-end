@@ -1,7 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
-
-/* Importing Bootstrap SCSS file. */
-@import "bootstrap/scss/bootstrap";
+@import "@angular/material/prebuilt-themes/purple-green.css";
 
 html,
 body {
@@ -10,4 +8,26 @@ body {
 body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* Importing Bootstrap SCSS file. */
+@import "bootstrap/scss/bootstrap";
+
+/* Wrapper to hold everything */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Make sure wrapper takes up the full viewport height */
+}
+
+/* Make the content take up the remaining space */
+.content {
+  flex-grow: 1; /* This makes the content expand to fill the available space */
+}
+
+/* Footer stays at the bottom */
+.footer {
+  background-color: #f1f1f1;
+  padding: 10px;
+  text-align: center;
 }

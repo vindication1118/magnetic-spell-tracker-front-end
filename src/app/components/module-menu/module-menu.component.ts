@@ -6,8 +6,6 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './module-menu.component.html',
-  styleUrl: './module-menu.component.scss'
+  styleUrl: './module-menu.component.scss',
 })
-export class ModuleMenuComponent {
-
-}
+export class ModuleMenuComponent {}

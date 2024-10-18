@@ -17,6 +17,7 @@
  * - Some Refactoring
  * - support for three r141
  * - updated for three r150
+ *
  */
 
 import * as THREE from 'three';

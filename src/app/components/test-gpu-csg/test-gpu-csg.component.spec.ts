@@ -8,10 +8,9 @@ describe('TestGpuCsgComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TestGpuCsgComponent]
-    })
-    .compileComponents();
-    
+      imports: [TestGpuCsgComponent],
+    }).compileComponents();
+
     fixture = TestBed.createComponent(TestGpuCsgComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

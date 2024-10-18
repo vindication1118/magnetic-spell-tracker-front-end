@@ -8,7 +8,6 @@ import {
   ViewChildren,
   QueryList,
   Input,
-  NgZone,
   ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -40,9 +39,10 @@ import { Manifold } from 'manifold-3d';
 //import { Geom3 } from '@jscad/modeling/src/geometries/types';
 //import fontDataBold from 'three/examples/fonts/droid/droid_sans_bold.typeface.json';
 import { pathExtruder } from '../../utils/jscad/jscad-path-extrude';
-//4import { Geom3 } from '@jscad/modeling/src/geometries/types';
+import { Geom3 } from '@jscad/modeling/src/geometries/types';
 import { Vec3 } from 'manifold-3d';
-import Geom3 from '@jscad/modeling/src/geometries/geom3/type';
+//import { WebGpuOpsService } from '../../services/web-gpu-ops.service';
+import { WebGpuOps } from '../../utils/web-gpu-ops';
 
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
@@ -138,7 +138,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private wasmLoaded: boolean = false;
 
   constructor(
-    private ngZone: NgZone,
     private manifoldService: ManifoldWasmService,
     //private webGpuOpsService: WebGpuOpsService,
   ) {}
@@ -184,7 +183,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.generateLayer3TextExtrusionsTri();
     this.addAxesMarkers(true, true);
 
-    /*
     if (typeof Worker !== 'undefined') {
       // Create a new
       const worker = new Worker(new URL('./3d.worker', import.meta.url), {
@@ -211,9 +209,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         }
       });
       this.tracker.createLayer3().then((layer3) => {
-        this.scene.add(layer3);
+        this.scene.add(layer3[0]);
       });
-    } */
+    }
   }
 
   private getAspectRatio() {
@@ -252,16 +250,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     //eslint-disable-next-line
     const component: Preview3dComponent = this;
-    this.ngZone.runOutsideAngular(() => {
-      (function render() {
-        component.frameID = requestAnimationFrame(render);
-        //component.animateCube();
-        component.controls.update();
-        component.updateLighting(component.lightDirected, component.camera);
-        component.renderer.render(component.scene, component.camera);
-        //console.log(component.camera.position);
-      })();
-    });
+
+    (function render() {
+      component.frameID = requestAnimationFrame(render);
+      //component.animateCube();
+      component.controls.update();
+      component.updateLighting(component.lightDirected, component.camera);
+      component.renderer.render(component.scene, component.camera);
+      //console.log(component.camera.position);
+    })();
   }
 
   async ngOnInit() {
@@ -270,8 +267,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     console.log('init wasm');
     await this.manifoldService.init();
     console.log('getting preview manifold inst');
-    this.manifoldInstance = await this.manifoldService.getManifoldInstance();
-    this.meshInstance = await this.manifoldService.getMeshInstance();
+    //this.manifoldInstance = await this.manifoldService.getManifoldInstance();
+    //this.meshInstance = await this.manifoldService.getMeshInstance();
     console.log('doing three integration');
 
     this.wasmLoaded = true;
@@ -347,6 +344,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       zMarker.rotation.set((90 * Math.PI) / 180, 0, 0);
       this.scene.add(zMarker);
     }
+
     if (manifold) {
       await this.manifoldService.init();
       const wasm = this.manifoldService.wasm;
@@ -419,34 +417,29 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     }
   }
 
-  /*
   private async calculate3DText(
     interior: (THREE.Vec2 | PathPosition)[],
     exterior: (THREE.Vec2 | PathPosition)[],
   ) {
     try {
       await WebGpuOps.initialize();
-      const geometry = WebGpuOps
-        .runComputeShaderAndCreateGeometry
-        //interior,
-        //exterior,
-        ();
-      geometry.then((result: Geom3) => {
-        //convert to stl then to three and add to scene
-        this.tracker
-          .convertJSCADToThree(
-            result,
-            CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
-            true,
-          )
-          .then((mesh) => {
-            this.scene.add(mesh);
-          });
-      });
+      const geometry = await WebGpuOps.runComputeShaderAndCreateGeometry(
+        interior,
+        exterior,
+      );
+
+      //convert to stl then to three and add to scene
+      const mesh = await this.tracker.convertJSCADToThree(
+        geometry,
+        CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
+        true,
+      );
+
+      this.scene.add(...mesh);
     } catch (error) {
       console.error(error);
     }
-  }*/
+  }
 
   private updateLighting(
     lightDirected: THREE.DirectionalLight,
@@ -462,18 +455,17 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     lightDirected.position.set(camera.position.x, lightY, camera.position.z);
   }
   private onWindowResize(): void {
-    this.ngZone.runOutsideAngular(() => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-      this.marchingCamera.aspect = window.innerWidth / window.innerHeight;
-      this.marchingCamera.updateProjectionMatrix();
-      this.marchingRenderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.marchingCamera.aspect = window.innerWidth / window.innerHeight;
+    this.marchingCamera.updateProjectionMatrix();
+    this.marchingRenderer.setSize(window.innerWidth, window.innerHeight);
   }
 
   // Function to export and download each object as STL
   // names are 'sliderLayer2', 'dialLayer2', 'layer1', 'layer3'
+
   public outputSTL() {
     const jsZip = new JSZip();
 
@@ -549,6 +541,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
    *  mesh here, store it in the modulesList, then handle it in a web worker or failing that,
    *  in the tracker module
    */
+
   public shapesToVec3s(shapes: THREE.Shape[]): Vec3[][] {
     const charVec3s: Vec3[][] = [];
     shapes.forEach((sh) => {
@@ -730,6 +723,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
            *  j dot goes after j base because xMin on j base is less than xMin on j dot
            * may need to generalize around these rules
            */
+
           if (i > 0 && char === 'i') {
             zHeight = max[2] - dotBox!.max[2]; //i dot goes before base
             zTranslate = dotBox!.max[2];
@@ -1159,6 +1153,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      * {x: xval, y: yval} objects
      */
     //console.log(shapes);
+
     const myShapes = shapes.map((shape) => {
       const shapeHoles = shape.extractPoints(5);
       return {
@@ -1189,8 +1184,12 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
    * work properly. All the CSG stuff is the expensive stuff anyway, so we build the mesh here then merge it
    * in the web worker
    */
-  /*
-  public generateTextCharShapes(svgPathNode: string, char: 'string', ind: number): CharShape[] {
+
+  public generateTextCharShapes(
+    svgPathNode: string,
+    char: 'string',
+    ind: number,
+  ): CharShape[] {
     //const layer3Height =
     // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
     //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
@@ -1210,16 +1209,24 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
      * each continuous non whitespace character or continuous component of a character
      * (like i is 2 because of the i dot) in our string has its own array of
      * {x: xval, y: yval} objects
-STARSLASHHERE
+     */
     //console.log(shapes);
-    const myShapes = shapes.map((shape) => {
-      return shape.extractPoints(5);
+
+    const myShapes: CharShape[] = shapes.map((shape) => {
+      const notaShape = shape.extractPoints(5);
+      const isAShape: CharShape = {
+        shape: notaShape.shape,
+        holes: notaShape.holes,
+        char: char,
+        index: ind,
+      };
+      return isAShape;
       //const allPoints = [...points.shape, ...points.holes.flat()];
       //return allPoints;
     });
 
-    return { shape: myShapes.shape, holes: myShapes.holes, };
-  } */
+    return myShapes;
+  }
 
   public generateTextShapes(svgPathNode: string): THREE.Shape[] {
     //const layer3Height =
@@ -1264,6 +1271,9 @@ STARSLASHHERE
     const zoomableGroup = this.svgGroup.select('g');
     for (const shape of shapes) {
       const char = this.extractFlatCoordinates(shape);
+      const charPoints: THREE.Vec2[] = char.map((pt) => {
+        return { x: pt[0], y: pt[1] };
+      });
       const delaunay = d3.Delaunay.from(char);
       const vBounds = this.getVoronoiBounds(char);
       const voronoi = delaunay.voronoi(vBounds);
@@ -1278,13 +1288,10 @@ STARSLASHHERE
           .style('stroke', CommandHandler.getRandomColor())
           .style('stroke-width', 0.05);
       });
-      /*const voronoiPoints = CommandHandler.simplifyPoints(
+      const voronoiPoints = CommandHandler.simplifyPoints(
         this.parsePathData(svgPaths.join()),
       );
-      this.calculate3DText(voronoiPoints, [
-        ...CommandHandler.simplifyPoints(shape.shape),
-        ...CommandHandler.simplifyPoints(shape.holes.flat()),
-      ]);*/
+      this.calculate3DText(charPoints, voronoiPoints);
     }
     //console.log(moduleInfo.data);
     zoomableGroup

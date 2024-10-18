@@ -19,7 +19,7 @@ addEventListener('message', ({ data }) => {
   });
   myTracker
     .createLayer3()
-    .then((mesh) => mesh.toJSON())
+    .then((mesh) => mesh[0].toJSON())
     .then((meshJSON) => {
       postMessage(meshJSON);
     });

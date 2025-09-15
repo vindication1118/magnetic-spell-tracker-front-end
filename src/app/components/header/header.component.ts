@@ -1,7 +1,7 @@
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Router, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatCardModule } from '@angular/material/card';
@@ -9,14 +9,13 @@ import { MatCardModule } from '@angular/material/card';
 @Component({
     selector: 'app-header',
     imports: [
-        CommonModule,
-        MatToolbarModule,
-        MatButtonModule,
-        RouterLinkActive,
-        RouterOutlet,
-        MatDividerModule,
-        MatCardModule,
-    ],
+    MatToolbarModule,
+    MatButtonModule,
+    RouterLinkActive,
+    RouterOutlet,
+    MatDividerModule,
+    MatCardModule
+],
     templateUrl: './header.component.html',
     styleUrl: './header.component.scss'
 })

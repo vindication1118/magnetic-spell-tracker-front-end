@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { Preview3dComponent } from '../preview3d/preview3d.component';
 import { D3containerComponent } from '../d3container/d3container.component';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,11 +9,10 @@ import { EditorData } from '../../interfaces/editor-data';
 @Component({
     selector: 'app-editor',
     imports: [
-        CommonModule,
-        Preview3dComponent,
-        D3containerComponent,
-        MatButtonModule,
-    ],
+    Preview3dComponent,
+    D3containerComponent,
+    MatButtonModule
+],
     templateUrl: './editor.component.html',
     styleUrl: './editor.component.scss'
 })

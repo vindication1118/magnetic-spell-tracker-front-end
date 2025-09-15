@@ -9,7 +9,7 @@ import {
   PLATFORM_ID,
   inject,
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import {
   FormGroup,
   FormBuilder,
@@ -36,16 +36,15 @@ import * as THREE from 'three';
 @Component({
     selector: 'app-d3container',
     imports: [
-        CommonModule,
-        ReactiveFormsModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatSelectModule,
-        MatCardModule,
-        MatExpansionModule,
-        MatButtonModule,
-        ModuleMenuComponent,
-    ],
+    ReactiveFormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCardModule,
+    MatExpansionModule,
+    MatButtonModule,
+    ModuleMenuComponent
+],
     templateUrl: './d3container.component.html',
     styleUrl: './d3container.component.scss'
 })

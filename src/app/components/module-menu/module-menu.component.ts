@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
     selector: 'app-module-menu',
-    imports: [CommonModule],
+    imports: [],
     templateUrl: './module-menu.component.html',
     styleUrl: './module-menu.component.scss'
 })

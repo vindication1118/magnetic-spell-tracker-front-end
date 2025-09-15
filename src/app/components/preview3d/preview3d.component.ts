@@ -10,7 +10,7 @@ import {
   Input,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import * as THREE from 'three';
 //import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
 import { SpellTracker } from '../../utils/Object-Gen-Combo';
@@ -48,7 +48,7 @@ import { WebGpuOps } from '../../utils/web-gpu-ops';
 
 @Component({
     selector: 'app-preview3d',
-    imports: [CommonModule, MatButtonModule],
+    imports: [MatButtonModule],
     templateUrl: './preview3d.component.html',
     styleUrl: './preview3d.component.scss'
 })

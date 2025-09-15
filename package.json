@@ -34,7 +34,7 @@
     "@jscad/modeling": "^2.12.3",
     "@jscad/stl-deserializer": "^2.1.25",
     "@jscad/stl-serializer": "^2.1.18",
-    "@ng-bootstrap/ng-bootstrap": "^17.0.1",
+    "@ng-bootstrap/ng-bootstrap": "^18.0.0",
     "@popperjs/core": "^2.11.8",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.4.1",

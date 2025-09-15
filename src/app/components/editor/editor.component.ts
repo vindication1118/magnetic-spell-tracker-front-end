@@ -7,16 +7,15 @@ import { TrackerModule } from '../../interfaces/tracker-module';
 import { EditorData } from '../../interfaces/editor-data';
 
 @Component({
-  selector: 'app-editor',
-  standalone: true,
-  imports: [
-    CommonModule,
-    Preview3dComponent,
-    D3containerComponent,
-    MatButtonModule,
-  ],
-  templateUrl: './editor.component.html',
-  styleUrl: './editor.component.scss',
+    selector: 'app-editor',
+    imports: [
+        CommonModule,
+        Preview3dComponent,
+        D3containerComponent,
+        MatButtonModule,
+    ],
+    templateUrl: './editor.component.html',
+    styleUrl: './editor.component.scss'
 })
 export class EditorComponent {
   public previewVisible: boolean = false;

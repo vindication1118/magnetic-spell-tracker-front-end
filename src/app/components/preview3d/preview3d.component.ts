@@ -47,11 +47,10 @@ import { WebGpuOps } from '../../utils/web-gpu-ops';
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
 @Component({
-  selector: 'app-preview3d',
-  standalone: true,
-  imports: [CommonModule, MatButtonModule],
-  templateUrl: './preview3d.component.html',
-  styleUrl: './preview3d.component.scss',
+    selector: 'app-preview3d',
+    imports: [CommonModule, MatButtonModule],
+    templateUrl: './preview3d.component.html',
+    styleUrl: './preview3d.component.scss'
 })
 export class Preview3dComponent implements OnInit, AfterViewInit {
   @ViewChildren('canvas') canvasses!: QueryList<ElementRef>;

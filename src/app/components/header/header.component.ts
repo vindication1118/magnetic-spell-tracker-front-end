@@ -7,19 +7,18 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatCardModule } from '@angular/material/card';
 
 @Component({
-  selector: 'app-header',
-  standalone: true,
-  imports: [
-    CommonModule,
-    MatToolbarModule,
-    MatButtonModule,
-    RouterLinkActive,
-    RouterOutlet,
-    MatDividerModule,
-    MatCardModule,
-  ],
-  templateUrl: './header.component.html',
-  styleUrl: './header.component.scss',
+    selector: 'app-header',
+    imports: [
+        CommonModule,
+        MatToolbarModule,
+        MatButtonModule,
+        RouterLinkActive,
+        RouterOutlet,
+        MatDividerModule,
+        MatCardModule,
+    ],
+    templateUrl: './header.component.html',
+    styleUrl: './header.component.scss'
 })
 export class HeaderComponent {
   constructor(private router: Router) {}

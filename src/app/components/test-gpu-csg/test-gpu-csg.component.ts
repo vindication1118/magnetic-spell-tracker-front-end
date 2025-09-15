@@ -9,11 +9,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 @Component({
-  selector: 'app-test-gpu-csg',
-  standalone: true,
-  imports: [],
-  templateUrl: './test-gpu-csg.component.html',
-  styleUrls: ['./test-gpu-csg.component.scss'],
+    selector: 'app-test-gpu-csg',
+    imports: [],
+    templateUrl: './test-gpu-csg.component.html',
+    styleUrls: ['./test-gpu-csg.component.scss']
 })
 export class TestGpuCsgComponent implements OnInit, AfterViewInit {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef;

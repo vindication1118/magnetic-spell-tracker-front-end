@@ -46,7 +46,7 @@ class SpellTracker {
     this.modulesList = newList;
   }
 
-  public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
+  /*public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
     const stlString = this.threeExporter.parse(model, { binary: true });
     const blob = new Blob([stlString], { type: 'application/octet-stream' });
     const arrayBuffer = await blob.arrayBuffer();
@@ -54,6 +54,29 @@ class SpellTracker {
       { output: 'geometry' },
       new Uint8Array(arrayBuffer),
     );
+    return jscGeom as Geom3;
+  } */
+
+  public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
+    const out = this.threeExporter.parse(model, { binary: true });
+
+    let bytes: Uint8Array;
+
+    if (out instanceof ArrayBuffer) {
+      // modern STLExporter when binary=true
+      bytes = new Uint8Array(out);
+    } else if (ArrayBuffer.isView(out)) {
+      // DataView / TypedArray — ensure ArrayBuffer backing (not SAB) by copying
+      const src = new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
+      bytes = new Uint8Array(src); // copy -> guaranteed ArrayBuffer
+    } else if (typeof out === 'string') {
+      // some exporters return ASCII STL text when options change
+      bytes = new TextEncoder().encode(out);
+    } else {
+      throw new Error('Unexpected STLExporter output type');
+    }
+
+    const jscGeom = deserialize.deserialize({ output: 'geometry' }, bytes);
     return jscGeom as Geom3;
   }
 

@@ -34,8 +34,8 @@ import { CharPath } from '../../interfaces/char-path';
 import * as THREE from 'three';
 
 @Component({
-    selector: 'app-d3container',
-    imports: [
+  selector: 'app-d3container',
+  imports: [
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -43,10 +43,10 @@ import * as THREE from 'three';
     MatCardModule,
     MatExpansionModule,
     MatButtonModule,
-    ModuleMenuComponent
-],
-    templateUrl: './d3container.component.html',
-    styleUrl: './d3container.component.scss'
+    ModuleMenuComponent,
+  ],
+  templateUrl: './d3container.component.html',
+  styleUrl: './d3container.component.scss',
 })
 export class D3containerComponent implements OnInit, AfterViewInit {
   @ViewChild('svgContainer')

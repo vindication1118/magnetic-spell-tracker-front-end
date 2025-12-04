@@ -1,26 +1,33 @@
-import { SpellTracker } from '../../utils/Object-Gen-Combo';
+import { AssemblyService } from '../../features/tracker/assembly.service';
+import { ThreeAdapter } from '../../data-access/cad/three.adapter';
+import { BooleanAdapter } from '../../data-access/cad/boolean.adapter';
+import { TextAdapter } from '../../data-access/cad/text.adapter';
 
 /// <reference lib="webworker" />
 
-addEventListener('message', ({ data }) => {
-  const myTracker = new SpellTracker(data['eD'], data['mL']);
-  myTracker
-    .addBaseLayer1()
-    .then((mesh) => mesh.toJSON())
-    .then((meshJSON) => {
-      postMessage(meshJSON);
-    });
+const three = new ThreeAdapter();
+const bools = new BooleanAdapter({ three });
+const text = new TextAdapter(three);
+const assembly = new AssemblyService(three, bools, text);
 
-  myTracker.createLayer2().then((meshArray) => {
-    for (const mesh of meshArray) {
-      const meshJSON = mesh.toJSON();
-      postMessage(meshJSON);
+addEventListener('message', ({ data }) => {
+  const editorData = data['eD'];
+  const modulesList = data['mL'];
+
+  assembly.buildBaseLayer1(editorData, modulesList).then((geom) => {
+    const meshes = three.meshesFromGeom3(geom, { color: 0x00ff00 });
+    if (meshes[0]) postMessage(meshes[0].toJSON());
+  });
+
+  assembly.buildLayer2(editorData, modulesList).then((geoms) => {
+    for (const geom of geoms) {
+      const mesh = three.meshesFromGeom3(geom, { color: 0xffff00 })[0];
+      if (mesh) postMessage(mesh.toJSON());
     }
   });
-  myTracker
-    .createLayer3()
-    .then((mesh) => mesh[0].toJSON())
-    .then((meshJSON) => {
-      postMessage(meshJSON);
-    });
+
+  assembly.buildLayer3(editorData, modulesList).then((geom) => {
+    const mesh = three.meshesFromGeom3(geom, { color: 0x00ffff })[0];
+    if (mesh) postMessage(mesh.toJSON());
+  });
 });

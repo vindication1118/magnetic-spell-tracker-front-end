@@ -43,6 +43,8 @@ import { Geom3 } from '@jscad/modeling/src/geometries/types';
 import { Vec3 } from 'manifold-3d';
 //import { WebGpuOpsService } from '../../services/web-gpu-ops.service';
 import { WebGpuOps } from '../../utils/web-gpu-ops';
+import { TextAdapter } from '../../data-access/cad/text.adapter';
+import { ThreeAdapter } from '../../data-access/cad/three.adapter';
 
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
@@ -108,6 +110,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private lightDirected!: THREE.DirectionalLight;
   private marchingCamera!: THREE.PerspectiveCamera;
   private marchingScene!: THREE.Scene;
+  private textAdapter = new TextAdapter(new ThreeAdapter());
 
   private get canvas(): HTMLCanvasElement {
     return this.canvasRef.nativeElement;
@@ -630,24 +633,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const unionedRandomBlocks: Manifold[] = [];
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
-        const textMeshTri = this.generateTextShapes(
-          module['data'][3] as unknown as string,
-        );
+        const svgPath = module['data'][3] as unknown as string;
+        const textMeshTri = this.textAdapter.shapesFromSvgPath(svgPath);
         const char: string = module['data'][4] as unknown as string;
         const ind: number = module['data'][6] as unknown as number;
-        const extraPoints: CharShape[] = [];
-
-        textMeshTri.forEach((sh) => {
-          const newShape = sh.getPoints(20);
-
-          const newHoles = sh.getPointsHoles(20);
-          extraPoints.push({
-            shape: newShape,
-            holes: newHoles,
-            char: char,
-            index: ind,
-          });
-        });
+        const extraPoints: CharShape[] = this.textAdapter.charShapesFromSvgPath(
+          svgPath,
+          char,
+          ind,
+        );
         const otherShapes = this.charShapesToVec3s(extraPoints);
         const maniprismPts = pathExtruder.testExtrude(
           charDepth + 1,
@@ -667,11 +661,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         const textModule = module as TextModule;
         //console.log(textModule.data);*/
 
-        const textMeshVertArr = this.generateTextMeshesForIntersect(
-          module['data'][3] as unknown as string,
-          textModule,
-          charDepth,
-        );
+        const textMeshVertArr = this.textAdapter.meshesFromSvgPath(svgPath, {
+          depth: charDepth,
+          yTranslate: -(charDepth / 2 + 0.1),
+        });
         const textVertMani: Manifold[] = [];
         textMeshVertArr.forEach((char) => {
           const vertMani = this.manifoldService.threeMesh2manifold(char);
@@ -1054,63 +1047,15 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       if (module['type'] === 3) {
         const textModule = module as TextModule;
         //console.log(textModule.data);
-        const textMesh = this.generateTextMeshesForIntersect(
+        const textMesh = this.textAdapter.meshesFromSvgPath(
           module['data'][3] as unknown as string,
-          textModule,
-          charDepth,
+          { depth: charDepth, yTranslate: -(charDepth / 2 + 0.1) },
         );
         return textMesh;
       }
     }
     //console.log(this.modulesList);
     this.tracker.updateModulesList(this.modulesList);
-  }
-
-  public generateTextMeshesForIntersect(
-    svgPathNode: string,
-    moduleInfo: TextModule,
-    charDepth: number,
-  ): THREE.Mesh[] {
-    //const layer3Height =
-    //  moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
-    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
-    const yTranslate = -(charDepth / 2 + 0.1);
-    const loader = new SVGLoader();
-    const data = loader.parse(svgPathNode);
-    //get path for each character
-    const paths = data.paths;
-    console.log(paths);
-    const shapes: THREE.Shape[] = [];
-    for (let i = 0; i < paths.length; i++) {
-      const path = paths[i];
-
-      const shapesTemp = path.toShapes(true);
-      shapes.push(...shapesTemp);
-    }
-    console.log(moduleInfo);
-    const extrudeSettings = {
-      steps: 2,
-      depth: charDepth,
-      bevelEnabled: false,
-      bevelThickness: 0,
-      bevelSize: 0,
-      bevelOffset: 0,
-      bevelSegments: 0,
-    };
-    const geometryArr: THREE.ExtrudeGeometry[] = [];
-    shapes.forEach((shape) =>
-      geometryArr.push(new THREE.ExtrudeGeometry(shape, extrudeSettings)),
-    );
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const meshes: THREE.Mesh[] = [];
-    geometryArr.forEach((geometry) => {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.rotation.set(Math.PI / 2, 0, 0);
-      mesh.position.y = yTranslate;
-      mesh.updateMatrix();
-      meshes.push(mesh);
-    });
-    return meshes;
   }
 
   /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to
@@ -1125,58 +1070,19 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const layer3Height =
       moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
     const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
-    const loader = new SVGLoader();
-    const data = loader.parse(svgPathNode);
-    //get path for each character
-    const paths = data.paths;
-    //console.log(paths);
-    const shapes: THREE.Shape[] = [];
-    for (let i = 0; i < paths.length; i++) {
-      const path = paths[i];
-
-      const shapesTemp = path.toShapes(true);
-      shapes.push(...shapesTemp);
-    }
-    const extrudeSettings = {
-      steps: 2,
+    const meshes = this.textAdapter.meshesFromSvgPath(svgPathNode, {
       depth: moduleInfo.editorData.textDepth * 2,
-      bevelEnabled: false,
-      bevelThickness: 0,
-      bevelSize: 0,
-      bevelOffset: 0,
-      bevelSegments: 0,
-    };
-    /**
-     * each continuous non whitespace character or continuous component of a character
-     * (like i is 2 because of the i dot) in our string has its own array of
-     * {x: xval, y: yval} objects
-     */
-    //console.log(shapes);
-
-    const myShapes = shapes.map((shape) => {
-      const shapeHoles = shape.extractPoints(5);
-      return {
-        shape: shapeHoles.shape,
-        holes: shapeHoles.holes,
-        char: moduleInfo.data[4] as unknown as string,
-        index: moduleInfo.data[6] as unknown as number,
-      };
-      //const allPoints = [...points.shape, ...points.holes.flat()];
-      //return allPoints;
+      yTranslate,
     });
 
-    //console.log(myCoords);
+    const charShapes = this.textAdapter.charShapesFromSvgPath(
+      svgPathNode,
+      moduleInfo.data[4] as unknown as string,
+      moduleInfo.data[6] as unknown as number,
+    );
+    this.generateVoronoiFromText(charShapes, moduleInfo);
 
-    this.generateVoronoiFromText(myShapes, moduleInfo);
-    const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.rotation.set(Math.PI / 2, 0, 0);
-    mesh.position.y = yTranslate;
-    mesh.updateMatrix();
-    const meshJSON = mesh.toJSON();
-    //console.log(meshJSON);
-    return meshJSON;
+    return meshes.map((mesh) => mesh.toJSON());
   }
 
   /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to
@@ -1189,67 +1095,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     char: 'string',
     ind: number,
   ): CharShape[] {
-    //const layer3Height =
-    // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
-    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
-    const loader = new SVGLoader();
-    const data = loader.parse(svgPathNode);
-    //get path for each character
-    const paths = data.paths;
-    //console.log(paths);
-    const shapes: THREE.Shape[] = [];
-    for (let i = 0; i < paths.length; i++) {
-      const path = paths[i];
-      const shapesTemp = path.toShapes(true);
-      shapes.push(...shapesTemp);
-    }
-
-    /**
-     * each continuous non whitespace character or continuous component of a character
-     * (like i is 2 because of the i dot) in our string has its own array of
-     * {x: xval, y: yval} objects
-     */
-    //console.log(shapes);
-
-    const myShapes: CharShape[] = shapes.map((shape) => {
-      const notaShape = shape.extractPoints(5);
-      const isAShape: CharShape = {
-        shape: notaShape.shape,
-        holes: notaShape.holes,
-        char: char,
-        index: ind,
-      };
-      return isAShape;
-      //const allPoints = [...points.shape, ...points.holes.flat()];
-      //return allPoints;
-    });
-
-    return myShapes;
+    return this.textAdapter.charShapesFromSvgPath(svgPathNode, char, ind);
   }
 
   public generateTextShapes(svgPathNode: string): THREE.Shape[] {
-    //const layer3Height =
-    // moduleInfo.editorData.minWallWidth + moduleInfo.editorData.textDepth;
-    //const yTranslate = layer3Height / 2 + 5 - moduleInfo.editorData.textDepth;
-    const loader = new SVGLoader();
-    const data = loader.parse(svgPathNode);
-    //get path for each character
-    const paths = data.paths;
-    //console.log(paths);
-    const shapes: THREE.Shape[] = [];
-    for (let i = 0; i < paths.length; i++) {
-      const path = paths[i];
-      const shapesTemp = path.toShapes(true);
-      shapes.push(...shapesTemp);
-    }
-
-    /**
-     * each continuous non whitespace character or continuous component of a character
-     * (like i is 2 because of the i dot) in our string has its own array of
-     * {x: xval, y: yval} objects
-     */
-
-    return shapes;
+    return this.textAdapter.shapesFromSvgPath(svgPathNode);
   }
 
   public extractFlatCoordinates(shapeData: {

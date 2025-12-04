@@ -15,6 +15,7 @@ import * as deserialize from '@jscad/stl-deserializer';
 import * as serialize from '@jscad/stl-serializer';
 import { booleans } from '@jscad/modeling/src/index';
 import { Geom3 } from '@jscad/modeling/src/geometries/types';
+import { ThreeAdapter } from '../data-access/cad/three.adapter';
 
 class SpellTracker {
   public editorData!: EditorData;
@@ -23,6 +24,7 @@ class SpellTracker {
   private objectLoader = new THREE.ObjectLoader();
   private threeExporter = new STLExporter();
   private threeLoader = new STLLoader();
+  private threeAdapter: ThreeAdapter;
   private manifold!: ManifoldWasmService;
 
   constructor(
@@ -40,6 +42,11 @@ class SpellTracker {
       (this.editorData.partGapWidth + this.editorData.minWallWidth) * 2 +
       this.editorData.textDepth +
       1;
+
+    this.threeAdapter = new ThreeAdapter({
+      exporter: this.threeExporter,
+      loader: this.threeLoader,
+    });
   }
 
   public updateModulesList(newList: TrackerModule[]) {
@@ -58,26 +65,7 @@ class SpellTracker {
   } */
 
   public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
-    const out = this.threeExporter.parse(model, { binary: true });
-
-    let bytes: Uint8Array;
-
-    if (out instanceof ArrayBuffer) {
-      // modern STLExporter when binary=true
-      bytes = new Uint8Array(out);
-    } else if (ArrayBuffer.isView(out)) {
-      // DataView / TypedArray — ensure ArrayBuffer backing (not SAB) by copying
-      const src = new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
-      bytes = new Uint8Array(src); // copy -> guaranteed ArrayBuffer
-    } else if (typeof out === 'string') {
-      // some exporters return ASCII STL text when options change
-      bytes = new TextEncoder().encode(out);
-    } else {
-      throw new Error('Unexpected STLExporter output type');
-    }
-
-    const jscGeom = deserialize.deserialize({ output: 'geometry' }, bytes);
-    return jscGeom as Geom3;
+    return this.threeAdapter.geom3FromThree(model);
   }
 
   public async convertJSCADToThree(
@@ -86,69 +74,20 @@ class SpellTracker {
     debug: boolean = false,
     wireframeOut: boolean = false,
   ): Promise<THREE.Mesh[]> {
-    const stlData = serialize.serialize({ binary: true }, model);
-    //console.log(stlArray);
-    //const stlBuffer = stlArray[2];
-    const blob = new Blob(stlData);
-    const arrayBuffer = await blob.arrayBuffer();
-    const geometry = this.threeLoader.parse(arrayBuffer);
-    if (debug) {
-      // Loop through the faces and assign a random color
-      const color = new THREE.Color();
-      const positionAttribute = geometry.getAttribute('position');
-      const colors = [];
+    const meshes = this.threeAdapter.meshesFromGeom3(model, {
+      color: modelColor,
+      debug,
+    });
 
-      for (let i = 0; i < positionAttribute.count; i += 3) {
-        // Generate a random color
-        const min = 0xaaaaaa;
-        const max = 0xeeeeee;
-        const randomColor = Math.random() * (max - min) + min;
-        color.set(randomColor);
-
-        // Assign the color to the three vertices of the face
-        colors.push(color.r, color.g, color.b);
-        colors.push(color.r, color.g, color.b);
-        colors.push(color.r, color.g, color.b);
-      }
-
-      // Add the color attribute to the geometry
-      geometry.setAttribute(
-        'color',
-        new THREE.Float32BufferAttribute(colors, 3),
-      );
-      let isTransparent = false;
-      if (wireframeOut) {
-        isTransparent = true;
-      }
-      // Create a material that supports vertex colors
-      const wireFrameMaterial = new THREE.MeshBasicMaterial({
-        wireframe: wireframeOut,
-        transparent: isTransparent,
-        opacity: 0.65,
+    if (wireframeOut) {
+      const wireframes = this.threeAdapter.meshesFromGeom3(model, {
         color: 0xffffff,
+        wireframe: true,
       });
-
-      const faceMaterial = new THREE.MeshStandardMaterial({
-        transparent: isTransparent,
-        opacity: 0.65,
-        vertexColors: true,
-      });
-
-      // Create the mesh
-      const meshArr: THREE.Mesh[] = [];
-      meshArr.push(new THREE.Mesh(geometry, faceMaterial));
-      if (wireframeOut) {
-        meshArr.push(new THREE.Mesh(geometry, wireFrameMaterial));
-      }
-
-      return meshArr;
+      meshes.push(...wireframes);
     }
-    return Array(
-      new THREE.Mesh(
-        geometry,
-        new THREE.MeshStandardMaterial({ color: modelColor, wireframe: false }),
-      ),
-    );
+
+    return meshes;
   }
 
   public async addBaseLayer1(): Promise<THREE.Object3D> {
@@ -208,26 +147,7 @@ class SpellTracker {
   }
 
   private applyTransformationMatrix(object: THREE.Mesh): void {
-    // Ensure the matrix is up to date
-    object.updateMatrix();
-    object.updateMatrixWorld(true);
-
-    // Get the object's transformation matrix
-    const matrix = object.matrixWorld.clone();
-
-    // Apply the matrix to the geometry
-    const geometry = object.geometry;
-    geometry.applyMatrix4(matrix);
-
-    // Optionally, clear the transformation of the object
-    object.matrix.identity();
-    object.matrixWorld.identity();
-    object.position.set(0, 0, 0);
-    object.rotation.set(0, 0, 0);
-    object.scale.set(1, 1, 1);
-
-    // Recompute vertex normals if necessary
-    geometry.computeVertexNormals();
+    this.threeAdapter.bakeWorldMatrix(object);
   }
 
   public async addSliderLayer1(

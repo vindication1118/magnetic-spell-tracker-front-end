@@ -60,7 +60,10 @@ export class ThreeAdapter {
       const u8 = serialize.serialize({ binary: true }, g) as unknown; // bytes-like
       const bytes = normalizeToUint8Array(u8);
       // STLLoader.parse requires an ArrayBuffer whose byte range is exact:
-      const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      const ab = bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength
+      ) as ArrayBuffer;
       const tGeo = this.loader.parse(ab);
 
       const mat =
@@ -72,7 +75,7 @@ export class ThreeAdapter {
               wireframe: !!options.wireframe,
               transparent: !!options.debug || !!options.wireframe,
               opacity: options.debug || options.wireframe ? 0.65 : 1,
-              vertexColors: options.debug === true,
+              vertexColors: !!options.debug,
             }));
 
       meshes.push(new THREE.Mesh(tGeo, mat));

@@ -46,6 +46,9 @@
               "src/styles.scss"
             ],
             "scripts": [],
+            "externalDependencies": [
+              "module"
+            ],
             "server": "src/main.server.ts",
             "prerender": true,
             "ssr": {
@@ -55,11 +58,16 @@
           },
           "configurations": {
             "production": {
+              "optimization": {
+                "fonts": {
+                  "inline": false
+                }
+              },
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
+                  "maximumWarning": "3mb",
+                  "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",

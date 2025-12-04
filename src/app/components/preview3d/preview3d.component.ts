@@ -13,7 +13,6 @@ import {
 
 import * as THREE from 'three';
 //import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
-import { SpellTracker } from '../../utils/Object-Gen-Combo';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 // import Stats from 'three/examples/jsm/libs/stats.module';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
@@ -21,7 +20,6 @@ import { saveAs } from 'file-saver';
 import { MatButtonModule } from '@angular/material/button';
 import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule, TextModule } from '../../interfaces/tracker-module';
-import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { StlFilenames } from '../../interfaces/stl-filenames';
 import JSZip from 'jszip';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -45,6 +43,8 @@ import { Vec3 } from 'manifold-3d';
 import { WebGpuOps } from '../../utils/web-gpu-ops';
 import { TextAdapter } from '../../data-access/cad/text.adapter';
 import { ThreeAdapter } from '../../data-access/cad/three.adapter';
+import { BooleanAdapter } from '../../data-access/cad/boolean.adapter';
+import { AssemblyService } from '../../features/tracker/assembly.service';
 
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
@@ -106,11 +106,13 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private marchingControls!: OrbitControls;
   private exporter: STLExporter = new STLExporter();
   private exporterOptions = { binary: true };
-  private tracker!: SpellTracker;
   private lightDirected!: THREE.DirectionalLight;
   private marchingCamera!: THREE.PerspectiveCamera;
   private marchingScene!: THREE.Scene;
-  private textAdapter = new TextAdapter(new ThreeAdapter());
+  private threeAdapter = new ThreeAdapter();
+  private boolAdapter = new BooleanAdapter({ three: this.threeAdapter });
+  private textAdapter = new TextAdapter(this.threeAdapter);
+  private assembly = new AssemblyService(this.threeAdapter, this.boolAdapter, this.textAdapter);
 
   private get canvas(): HTMLCanvasElement {
     return this.canvasRef.nativeElement;
@@ -202,16 +204,19 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     } else {
       // Web workers are not supported in this environment.
       console.log('Web workers not allowed!');
-      this.tracker.addBaseLayer1().then((layer1) => {
-        this.scene.add(layer1);
+      this.assembly.buildBaseLayer1(this.editorData, this.modulesList).then((geom) => {
+        const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0x00ff00 });
+        this.scene.add(...meshes);
       });
-      this.tracker.createLayer2().then((layer2) => {
-        for (const mesh of layer2) {
-          this.scene.add(mesh);
+      this.assembly.buildLayer2(this.editorData, this.modulesList).then((geoms) => {
+        for (const geom of geoms) {
+          const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0xffff00 });
+          this.scene.add(...meshes);
         }
       });
-      this.tracker.createLayer3().then((layer3) => {
-        this.scene.add(layer3[0]);
+      this.assembly.buildLayer3(this.editorData, this.modulesList).then((geom) => {
+        const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0x00ffff });
+        this.scene.add(...meshes);
       });
     }
   }
@@ -315,7 +320,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.svgGroup.call(zoom);
 
     await this.manifoldService.init();
-    this.tracker = new SpellTracker(this.editorData, this.modulesList);
     //this.initWebGL();
     this.createScene();
     this.startRenderingLoop();
@@ -431,11 +435,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       );
 
       //convert to stl then to three and add to scene
-      const mesh = await this.tracker.convertJSCADToThree(
-        geometry,
-        CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
-        true,
-      );
+      const mesh = this.threeAdapter.meshesFromGeom3(geometry, {
+        color: CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
+        debug: true,
+      });
 
       this.scene.add(...mesh);
     } catch (error) {
@@ -613,12 +616,10 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   }
 
   public async geoToThree(geo: Geom3): Promise<THREE.Mesh> {
-    const tjsGeo = await this.tracker.convertJSCADToThree(
-      geo,
-      0xffff00,
-      true,
-      false,
-    );
+    const tjsGeo = this.threeAdapter.meshesFromGeom3(geo, {
+      color: 0xffff00,
+      debug: true,
+    });
     return tjsGeo[0];
   }
 
@@ -779,7 +780,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     this.addMeshAndWireFrame(iPanel, true);
     //this.addMeshAndWireFrame(unionedLetterBlock, true);
     //console.log(this.modulesList);
-    this.tracker.updateModulesList(this.modulesList);
   }
 
   public CharShapeGeosToManifolds(csGeos: CharShapeGeometry[]): Manifold[] {
@@ -1055,7 +1055,6 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       }
     }
     //console.log(this.modulesList);
-    this.tracker.updateModulesList(this.modulesList);
   }
 
   /**This would go in a separate module to be run in a web worker, but requires access to the DOM in order to

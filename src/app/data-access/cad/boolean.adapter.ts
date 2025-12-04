@@ -1,6 +1,6 @@
 // data-access/cad/boolean.adapter.ts
 import type { Geom3 } from '@jscad/modeling/src/geometries/types';
-import { booleans as jscadBool } from '@jscad/modeling/src/operations/booleans';
+import * as jscadBool from '@jscad/modeling/src/operations/booleans';
 import * as THREE from 'three';
 import { ThreeAdapter, ManifoldBridge } from './three.adapter';
 
@@ -30,21 +30,21 @@ export class BooleanAdapter {
     if (this.engine === 'manifold' && this.manifold) {
       return this.unionManifold(parts);
     }
-    return jscadBool.union(parts as any) as Geom3;
+    return jscadBool.union(parts as any) as unknown as Geom3;
   }
 
   subtract(a: Geom3, b: Geom3): Geom3 {
     if (this.engine === 'manifold' && this.manifold) {
       return this.subtractManifold(a, b);
     }
-    return jscadBool.subtract(a as any, b as any) as Geom3;
+    return jscadBool.subtract(a as any, b as any) as unknown as Geom3;
   }
 
   intersect(...parts: Geom3[]): Geom3 {
     if (this.engine === 'manifold' && this.manifold) {
       return this.intersectManifold(parts);
     }
-    return jscadBool.intersect(parts as any) as Geom3;
+    return jscadBool.intersect(parts as any) as unknown as Geom3;
   }
 
   // ---------- Manifold-backed path ----------

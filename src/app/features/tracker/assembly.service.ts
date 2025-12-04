@@ -7,6 +7,11 @@ import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule, TextModule } from '../../interfaces/tracker-module';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import {
+  boxGeom3,
+  cylinderGeom3,
+  roundedSlotGeom3,
+} from '../../data-access/cad/generators.mesh';
 
 export class AssemblyService {
   constructor(
@@ -24,15 +29,7 @@ export class AssemblyService {
       1;
     const depth = editor.boundingBox.maxY + 20 - editor.boundingBox.minY + 20;
 
-    const baseMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(length, height, depth),
-      new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-    );
-    baseMesh.position.set(length / 2, -height / 2, depth / 2);
-    baseMesh.updateMatrix();
-    this.three.bakeWorldMatrix(baseMesh);
-
-    let base = this.three.geom3FromThree(baseMesh);
+    let base = boxGeom3([length, height, depth], [length / 2, -height / 2, depth / 2]);
 
     for (const module of modules) {
       if (module.type === 0) {
@@ -215,17 +212,8 @@ export class AssemblyService {
       }
     }
 
-    const trackCubeMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(tL, h, tD),
-      new THREE.MeshStandardMaterial({ color: 0xffff00 })
-    );
-    trackCubeMesh.position.set(newX, -h / 2 + 1, newZ);
-    trackCubeMesh.updateMatrix();
-    this.three.bakeWorldMatrix(trackCubeMesh);
-    let trackGeom = this.three.geom3FromThree(trackCubeMesh);
-
-    trackGeom = this.bools.union(trackGeom, ...cylArr);
-    return trackGeom;
+    const trackGeom = boxGeom3([tL, h, tD], [newX, -h / 2 + 1, newZ]);
+    return this.bools.union(trackGeom, ...cylArr);
   }
 
   async addDialCircle(
@@ -248,13 +236,7 @@ export class AssemblyService {
       bottomOfDialCircle -
       (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
 
-    const dialCircle = new THREE.Mesh(
-      new THREE.CylinderGeometry(r, r, h, 32),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    dialCircle.position.set(newX, -h / 2 + 1, newZ);
-    dialCircle.updateMatrix();
-    this.three.bakeWorldMatrix(dialCircle);
+    const dialCircle = cylinderGeom3(r, h, [newX, -h / 2 + 1, newZ]);
 
     const magCyl = await this.addMagCyl(
       newX,
@@ -267,18 +249,9 @@ export class AssemblyService {
 
     const knobR = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
     const knobH = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
-    const knobAlignCyl = new THREE.Mesh(
-      new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    knobAlignCyl.position.set(newX, magYTranslate, newZ);
-    knobAlignCyl.updateMatrix();
-    this.three.bakeWorldMatrix(knobAlignCyl);
+    const knobGeom = cylinderGeom3(knobR, knobH, [newX, magYTranslate, newZ]);
 
-    const dialGeom = this.three.geom3FromThree(dialCircle);
-    const knobGeom = this.three.geom3FromThree(knobAlignCyl);
-
-    return this.bools.union(dialGeom, magCyl, knobGeom);
+    return this.bools.union(dialCircle, magCyl, knobGeom);
   }
 
   async addSliderLayer2(
@@ -308,30 +281,14 @@ export class AssemblyService {
       newZ = translateY + w / 2 + moduleInfo.partGapWidth / 2;
     }
 
-    const sliderCube = new THREE.Mesh(
-      new THREE.BoxGeometry(sL, h, sD),
-      new THREE.MeshStandardMaterial({ color: 0xffff00 })
-    );
-    sliderCube.position.set(newX, -h / 2 + 3, newZ);
-    sliderCube.updateMatrix();
-    this.three.bakeWorldMatrix(sliderCube);
-
+    const sliderGeom = boxGeom3([sL, h, sD], [newX, -h / 2 + 3, newZ]);
     const magCyl = await this.addMagCyl(newX, magYTranslate, newZ, moduleInfo);
 
     const knobR = moduleInfo.derivedVals.knobWidth / 2;
-    const knobCyl = new THREE.Mesh(
-      new THREE.CylinderGeometry(knobR, knobR, h + 5, 32, 32),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    knobCyl.position.set(newX, (-h + 5) / 2 + 3, newZ);
-    knobCyl.updateMatrix();
-    this.three.bakeWorldMatrix(knobCyl);
+    const knobGeom = cylinderGeom3(knobR, h + 5, [newX, (-h + 5) / 2 + 3, newZ]);
 
-    let sliderGeom = this.three.geom3FromThree(sliderCube);
-    const knobGeom = this.three.geom3FromThree(knobCyl);
-    sliderGeom = this.bools.union(sliderGeom, knobGeom);
-    sliderGeom = this.bools.subtract(sliderGeom, magCyl);
-    return sliderGeom;
+    const unioned = this.bools.union(sliderGeom, knobGeom);
+    return this.bools.subtract(unioned, magCyl);
   }
 
   async addDialLayer2(
@@ -347,13 +304,7 @@ export class AssemblyService {
     const magYTranslate =
       -1 + bottomOfDialCircle + (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
 
-    const dialCircle = new THREE.Mesh(
-      new THREE.CylinderGeometry(r, r, h, 32),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    dialCircle.position.set(newX, -h / 2 + 3, newZ);
-    dialCircle.updateMatrix();
-    this.three.bakeWorldMatrix(dialCircle);
+    let dialGeom = cylinderGeom3(r, h, [newX, -h / 2 + 3, newZ]);
 
     const magCylArr: Geom3[] = [];
     const angleDiffRads = (2 * Math.PI) / 10;
@@ -374,20 +325,12 @@ export class AssemblyService {
 
     const knobR = moduleInfo.derivedVals.knobWidth / 2;
     const knobH = moduleInfo.magnetHeight + h + 5;
-    const knobAlignCyl = new THREE.Mesh(
-      new THREE.CylinderGeometry(knobR, knobR, knobH, 32),
-      new THREE.MeshStandardMaterial({ color: 0xff0000 })
-    );
-    knobAlignCyl.position.set(newX, -h / 2 + 3 + 2.5, newZ);
-    knobAlignCyl.updateMatrix();
-    this.three.bakeWorldMatrix(knobAlignCyl);
-
-    let dialGeom = this.three.geom3FromThree(dialCircle);
+    const knobGeom = cylinderGeom3(knobR, knobH, [newX, -h / 2 + 3 + 2.5, newZ]);
+ 
     for (const mag of magCylArr) {
       dialGeom = this.bools.subtract(dialGeom, mag);
     }
 
-    const knobGeom = this.three.geom3FromThree(knobAlignCyl);
     dialGeom = this.bools.union(dialGeom, knobGeom);
 
     const dialText = this.addDialDigits(
@@ -423,15 +366,12 @@ export class AssemblyService {
       const thetaDeg = angleDiffDeg * (i + 1);
       const newXVal = dialCenterX + newR * Math.cos(theta);
       const newZVal = dialCenterZ + newR * Math.sin(theta);
-      const divotBox = new THREE.Mesh(
-        new THREE.BoxGeometry(w, h, l),
-        new THREE.MeshStandardMaterial({ color: 0xffffff })
+      const divotBox = boxGeom3(
+        [w, h, l],
+        [newXVal, yTranslate + h / 2 - moduleInfo.textDepth, newZVal],
+        [0, -(theta - Math.PI / 2), 0],
       );
-      divotBox.position.set(newXVal, yTranslate + h / 2 - moduleInfo.textDepth, newZVal);
-      divotBox.rotation.y = -(theta - Math.PI / 2);
-      divotBox.updateMatrix();
-      this.three.bakeWorldMatrix(divotBox);
-      textObj.divots.push(this.three.geom3FromThree(divotBox));
+      textObj.divots.push(divotBox);
 
       const textXVal = dialCenterX + textRadius * Math.cos(theta);
       const textZVal = dialCenterZ + textRadius * Math.sin(theta);
@@ -464,70 +404,18 @@ export class AssemblyService {
     const l = length * moduleInfo.derivedVals.segmentLength + 2;
     const w =
       moduleInfo.derivedVals.sliderRadius * 2 + 2 + 2 * moduleInfo.partGapWidth;
-    const rectLength = moduleInfo.derivedVals.segmentLength * (length - 1);
     const r = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
     const height = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
-    const endGeometry = new THREE.CylinderGeometry(r, r, height, 32);
     const tY = -height / 2 + 5 + 1;
-    let newX: number, newZ: number, geom: Geom3;
-
     if (rotation === 0) {
-      newX = translateX + w / 2;
-      newZ = translateY + l / 2;
-      const firstCylZ = newZ - rectLength / 2;
-      const midMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(2 * r, height, rectLength),
-        new THREE.MeshStandardMaterial({ color: 0xfffff0 })
-      );
-      midMesh.position.set(newX, tY, newZ);
-      midMesh.updateMatrix();
-      this.three.bakeWorldMatrix(midMesh);
-
-      const topMesh = new THREE.Mesh(endGeometry, new THREE.MeshStandardMaterial());
-      topMesh.position.set(newX, tY, firstCylZ);
-      topMesh.updateMatrix();
-      this.three.bakeWorldMatrix(topMesh);
-
-      const bottomMesh = new THREE.Mesh(endGeometry, new THREE.MeshStandardMaterial());
-      bottomMesh.position.set(newX, tY, firstCylZ + rectLength);
-      bottomMesh.updateMatrix();
-      this.three.bakeWorldMatrix(bottomMesh);
-
-      geom = this.bools.union(
-        this.three.geom3FromThree(midMesh),
-        this.three.geom3FromThree(topMesh),
-        this.three.geom3FromThree(bottomMesh)
-      );
-    } else {
-      newX = translateX + l / 2;
-      newZ = translateY + w / 2;
-      const firstCylX = newX - rectLength / 2;
-      const midMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(rectLength, height, 2 * r),
-        new THREE.MeshStandardMaterial({ color: 0xfffff0 })
-      );
-      midMesh.position.set(newX, tY, newZ);
-      midMesh.updateMatrix();
-      this.three.bakeWorldMatrix(midMesh);
-
-      const leftMesh = new THREE.Mesh(endGeometry, new THREE.MeshStandardMaterial());
-      leftMesh.position.set(firstCylX, tY, newZ);
-      leftMesh.updateMatrix();
-      this.three.bakeWorldMatrix(leftMesh);
-
-      const rightMesh = new THREE.Mesh(endGeometry, new THREE.MeshStandardMaterial());
-      rightMesh.position.set(firstCylX + rectLength, tY, newZ);
-      rightMesh.updateMatrix();
-      this.three.bakeWorldMatrix(rightMesh);
-
-      geom = this.bools.union(
-        this.three.geom3FromThree(midMesh),
-        this.three.geom3FromThree(rightMesh),
-        this.three.geom3FromThree(leftMesh)
-      );
+      const newX = translateX + w / 2;
+      const newZ = translateY + l / 2;
+      return roundedSlotGeom3(l, r, height, [newX, tY, newZ], 'Z');
     }
 
-    return geom;
+    const newX = translateX + l / 2;
+    const newZ = translateY + w / 2;
+    return roundedSlotGeom3(l, r, height, [newX, tY, newZ], 'X');
   }
 
   async addDialWindowLayer3(
@@ -546,14 +434,7 @@ export class AssemblyService {
       tX + moduleInfo.derivedVals.plateWidth / 2 + newR * Math.cos(theta);
     const newZVal =
       tZ + moduleInfo.derivedVals.plateWidth / 2 + newR * Math.sin(theta);
-    const divotBox = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, l),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    divotBox.position.set(newXVal, tY, newZVal);
-    divotBox.updateMatrix();
-    this.three.bakeWorldMatrix(divotBox);
-    return this.three.geom3FromThree(divotBox);
+    return boxGeom3([w, h, l], [newXVal, tY, newZVal]);
   }
 
   async addDialKnobLayer3(
@@ -564,18 +445,11 @@ export class AssemblyService {
   ): Promise<Geom3> {
     const r = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
     const h = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
-    const knobHole = new THREE.Mesh(
-      new THREE.CylinderGeometry(r, r, h, 32),
-      new THREE.MeshStandardMaterial({ color: 0xffffff })
-    );
-    knobHole.position.set(
+    return cylinderGeom3(r, h, [
       tX + moduleInfo.derivedVals.plateWidth / 2,
       tY,
-      tZ + moduleInfo.derivedVals.plateWidth / 2
-    );
-    knobHole.updateMatrix();
-    this.three.bakeWorldMatrix(knobHole);
-    return this.three.geom3FromThree(knobHole);
+      tZ + moduleInfo.derivedVals.plateWidth / 2,
+    ]);
   }
 
   async addText(
@@ -624,18 +498,14 @@ export class AssemblyService {
     const divotXWidth = divotGeo!.max.x - divotGeo!.min.x;
     const divotYWidth = divotGeo!.max.y - divotGeo!.min.y;
     const divotZWidth = divotGeo!.max.z - divotGeo!.min.z;
-    const divotBoxMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(divotXWidth, divotZWidth, divotYWidth),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff })
+    const divotGeom = boxGeom3(
+      [divotXWidth, divotZWidth, divotYWidth],
+      [
+        translationX + divotXWidth / 2,
+        -h / 2 + yPos,
+        translationZ - (divotYWidth * 2) / 3,
+      ]
     );
-    divotBoxMesh.position.set(
-      translationX + divotXWidth / 2,
-      -h / 2 + yPos,
-      translationZ - (divotYWidth * 2) / 3
-    );
-    divotBoxMesh.updateMatrix();
-    this.three.bakeWorldMatrix(divotBoxMesh);
-    const divotGeom = this.three.geom3FromThree(divotBoxMesh);
     return { text: textGeom, divot: divotGeom };
   }
 
@@ -725,15 +595,7 @@ export class AssemblyService {
   ): Promise<Geom3> {
     const r = moduleInfo.magnetDiameter / 2 + moduleInfo.partGapWidth;
     const h = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
-    const geometry = new THREE.CylinderGeometry(r, r, h, 32);
-    const cylinder = new THREE.Mesh(
-      geometry,
-      new THREE.MeshStandardMaterial({ color: 0xffff00 })
-    );
-    cylinder.position.set(tX, tY, tZ);
-    cylinder.updateMatrix();
-    this.three.bakeWorldMatrix(cylinder);
-    return this.three.geom3FromThree(cylinder);
+    return cylinderGeom3(r, h, [tX, tY, tZ]);
   }
 
   private translateGeom(g: Geom3, x: number, y: number, z: number): Geom3 {

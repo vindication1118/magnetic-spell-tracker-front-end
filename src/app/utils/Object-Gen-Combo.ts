@@ -15,6 +15,7 @@ import * as deserialize from '@jscad/stl-deserializer';
 import * as serialize from '@jscad/stl-serializer';
 import { booleans } from '@jscad/modeling/src/index';
 import { Geom3 } from '@jscad/modeling/src/geometries/types';
+import { ArrayBufferHelper } from './Array-Buffer-Helper';
 
 class SpellTracker {
   public editorData!: EditorData;
@@ -46,17 +47,6 @@ class SpellTracker {
     this.modulesList = newList;
   }
 
-  /*public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
-    const stlString = this.threeExporter.parse(model, { binary: true });
-    const blob = new Blob([stlString], { type: 'application/octet-stream' });
-    const arrayBuffer = await blob.arrayBuffer();
-    const jscGeom = deserialize.deserialize(
-      { output: 'geometry' },
-      new Uint8Array(arrayBuffer),
-    );
-    return jscGeom as Geom3;
-  } */
-
   public async convertThreeToJSCAD(model: THREE.Mesh): Promise<Geom3> {
     const out = this.threeExporter.parse(model, { binary: true });
 
@@ -86,12 +76,19 @@ class SpellTracker {
     debug: boolean = false,
     wireframeOut: boolean = false,
   ): Promise<THREE.Mesh[]> {
-    const stlData = serialize.serialize({ binary: true }, model);
-    //console.log(stlArray);
-    //const stlBuffer = stlArray[2];
-    const blob = new Blob(stlData);
-    const arrayBuffer = await blob.arrayBuffer();
-    const geometry = this.threeLoader.parse(arrayBuffer);
+    const out = serialize.serialize({ binary: true }, model);
+    const bytes = ArrayBufferHelper.toUint8Array(out);
+
+    // STLLoader.parse(binary) wants an ArrayBuffer for binary STL.
+    // Slice to the exact range in case byteOffset != 0
+    const ab: ArrayBuffer = ArrayBufferHelper.toArrayBuffer(
+      bytes.buffer,
+      bytes.byteOffset,
+      bytes.byteLength,
+    );
+    //const ab = new ArrayBuffer(sab.byteLength);
+
+    const geometry = this.threeLoader.parse(ab);
     if (debug) {
       // Loop through the faces and assign a random color
       const color = new THREE.Color();

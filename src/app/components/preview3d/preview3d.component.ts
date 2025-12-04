@@ -47,10 +47,10 @@ import { WebGpuOps } from '../../utils/web-gpu-ops';
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
 @Component({
-    selector: 'app-preview3d',
-    imports: [MatButtonModule],
-    templateUrl: './preview3d.component.html',
-    styleUrl: './preview3d.component.scss'
+  selector: 'app-preview3d',
+  imports: [MatButtonModule],
+  templateUrl: './preview3d.component.html',
+  styleUrl: './preview3d.component.scss',
 })
 export class Preview3dComponent implements OnInit, AfterViewInit {
   @ViewChildren('canvas') canvasses!: QueryList<ElementRef>;
@@ -469,9 +469,8 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     const jsZip = new JSZip();
 
     // Assuming you have an array of blobs and corresponding filenames
-    const blobs: Blob[] = [];
-    const filenames: string[] = [];
     const nameArr: string[] = [];
+    const files: Array<{ name: string; data: string | Uint8Array }> = [];
     const fileCount: StlFilenames = {
       layer1: 0,
       layer3: 0,
@@ -500,11 +499,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         if (!nameArr.includes(child.name)) {
           nameArr.push(child.name);
           const stlString = this.exporter.parse(child);
-
-          // Create a blob from the STL string
-          const blob = new Blob([stlString], { type: 'text/plain' });
-          blobs.push(blob);
-          filenames.push(child.name + '.stl');
+          files.push({ name: child.name + '.stl', data: stlString });
         }
       }
     });
@@ -519,14 +514,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       fileCount.layer3 +
       ' time(s) \n';
 
-    const readmeBlob = new Blob([readme], { type: 'text/plain' });
-    blobs.push(readmeBlob);
-    filenames.push('README.md');
+    files.push({ name: 'README.md', data: readme });
 
-    // Add each blob to the zip with a filename
-    blobs.forEach((blob, index) => {
-      jsZip.file(filenames[index], blob);
-    });
+    for (const f of files) {
+      jsZip.file(f.name, f.data);
+    }
 
     // Generate the zip file as a blob
     jsZip.generateAsync({ type: 'blob' }).then((zipBlob) => {

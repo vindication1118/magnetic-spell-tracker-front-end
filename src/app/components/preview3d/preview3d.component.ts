@@ -45,6 +45,7 @@ import { TextAdapter } from '../../data-access/cad/text.adapter';
 import { ThreeAdapter } from '../../data-access/cad/three.adapter';
 import { BooleanAdapter } from '../../data-access/cad/boolean.adapter';
 import { AssemblyService } from '../../features/tracker/assembly.service';
+import { zipSceneMeshes } from '../../data-access/cad/export.adapter';
 
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
@@ -471,74 +472,9 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   // Function to export and download each object as STL
   // names are 'sliderLayer2', 'dialLayer2', 'layer1', 'layer3'
 
-  public outputSTL() {
-    const jsZip = new JSZip();
-
-    // Assuming you have an array of blobs and corresponding filenames
-    const blobs: Blob[] = [];
-    const filenames: string[] = [];
-    const nameArr: string[] = [];
-    const fileCount: StlFilenames = {
-      layer1: 0,
-      layer3: 0,
-      sliderLayer2: 0,
-      dialLayer2: 0,
-    };
-    this.scene.children.forEach((child: THREE.Object3D) => {
-      if (child instanceof THREE.Mesh) {
-        // Export the geometry
-        switch (child.name) {
-          case 'layer1':
-            fileCount.layer1++;
-            break;
-          case 'sliderLayer2':
-            fileCount.sliderLayer2++;
-            break;
-          case 'dialLayer2':
-            fileCount.dialLayer2++;
-            break;
-          case 'layer3':
-            fileCount.layer3++;
-            break;
-          default:
-            break;
-        }
-        if (!nameArr.includes(child.name)) {
-          nameArr.push(child.name);
-          const stlString = this.exporter.parse(child);
-
-          // Create a blob from the STL string
-          const blob = new Blob([stlString], { type: 'text/plain' });
-          blobs.push(blob);
-          filenames.push(child.name + '.stl');
-        }
-      }
-    });
-    const readme =
-      'layer1.stl: print ' +
-      fileCount.layer1 +
-      ' time(s) \nsliderLayer2.stl: print ' +
-      fileCount.sliderLayer2 +
-      ' time(s) \ndialLayer2.stl: print ' +
-      fileCount.dialLayer2 +
-      ' time(s) \nlayer3: print ' +
-      fileCount.layer3 +
-      ' time(s) \n';
-
-    const readmeBlob = new Blob([readme], { type: 'text/plain' });
-    blobs.push(readmeBlob);
-    filenames.push('README.md');
-
-    // Add each blob to the zip with a filename
-    blobs.forEach((blob, index) => {
-      jsZip.file(filenames[index], blob);
-    });
-
-    // Generate the zip file as a blob
-    jsZip.generateAsync({ type: 'blob' }).then((zipBlob) => {
-      // You now have a zipBlob representing your zip file, which you can download or use as needed
-      saveAs(zipBlob, 'my-test-stls.zip');
-    });
+  public async outputSTL() {
+    const zipBlob = await zipSceneMeshes(this.scene);
+    saveAs(zipBlob, 'my-stls.zip');
   }
 
   /** This would go in a separate module to be run in a web worker, but requires access to the DOM

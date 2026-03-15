@@ -27,7 +27,6 @@ import opentype from 'opentype.js';
 import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule } from '../../interfaces/tracker-module';
 import { cloneDeep } from 'lodash-es';
-import { ModuleMenuComponent } from '../module-menu/module-menu.component';
 import { PathPosition } from '../../interfaces/path-position';
 import { CharPath } from '../../interfaces/char-path';
 //import { TextBoundingBox } from '../../interfaces/text-bounding-box';
@@ -43,7 +42,6 @@ import * as THREE from 'three';
     MatCardModule,
     MatExpansionModule,
     MatButtonModule,
-    ModuleMenuComponent,
   ],
   templateUrl: './d3container.component.html',
   styleUrl: './d3container.component.scss',
@@ -236,16 +234,17 @@ export class D3containerComponent implements OnInit, AfterViewInit {
         .style('stroke-width', strokeWidth);
     }
     //console.log(this.segmentLength);
+    //this.addSlider(3, 90, 20, 20);
 
     //this.addNumberDialInstance(20, 20);
     //this.addNumberDialInstance(60, 20);
     //this.addNumberDialInstance(100, 20);
     //this.addText(0, 60, 10, 'Life Total', 8);
-    this.addPathText(0, 5, 10, 'abcdef', 8);
-    this.addPathText(0, 5, 30, 'ghijkl', 8);
+    //this.addPathText(0, 5, 10, 'abcdef', 8);
+    //this.addPathText(0, 5, 30, 'ghijkl', 8);
     //this.addPathText(0, 5, 30, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
     //this.addPathText(0, 5, 50, '0123456789', 8);
-    this.addPathText(0, 5, 50, 'mnopqr', 8);
+    //this.addPathText(0, 5, 50, 'mnopqr', 8);
     //this.addPathText(0, 60, 30, 'Life Total', 8);
     /*this.addSlider(2, 90, 20, 10);
     this.addSlider(3, 90, 20, 20);

@@ -17,10 +17,13 @@ export class AssemblyService {
   constructor(
     private readonly three: ThreeAdapter,
     private readonly bools: BooleanAdapter,
-    private readonly text: TextAdapter
+    private readonly text: TextAdapter,
   ) {}
 
-  async buildBaseLayer1(editor: EditorData, modules: TrackerModule[]): Promise<Geom3> {
+  async buildBaseLayer1(
+    editor: EditorData,
+    modules: TrackerModule[],
+  ): Promise<Geom3> {
     const length = editor.boundingBox.maxX + 20 - editor.boundingBox.minX + 20;
     const height =
       editor.magnetHeight +
@@ -29,7 +32,10 @@ export class AssemblyService {
       1;
     const depth = editor.boundingBox.maxY + 20 - editor.boundingBox.minY + 20;
 
-    let base = boxGeom3([length, height, depth], [length / 2, -height / 2, depth / 2]);
+    let base = boxGeom3(
+      [length, height, depth],
+      [length / 2, -height / 2, depth / 2],
+    );
 
     for (const module of modules) {
       if (module.type === 0) {
@@ -38,14 +44,14 @@ export class AssemblyService {
           Number(module.data[1]),
           Number(module.data[2]),
           Number(module.data[3]),
-          module.editorData
+          module.editorData,
         );
         base = this.bools.subtract(base, track);
       } else if (module.type === 1) {
         const dial = await this.addDialCircle(
           Number(module.data[0]),
           Number(module.data[1]),
-          module.editorData
+          module.editorData,
         );
         base = this.bools.subtract(base, dial);
       }
@@ -54,7 +60,10 @@ export class AssemblyService {
     return base;
   }
 
-  async buildLayer2(editor: EditorData, modules: TrackerModule[]): Promise<Geom3[]> {
+  async buildLayer2(
+    editor: EditorData,
+    modules: TrackerModule[],
+  ): Promise<Geom3[]> {
     const output: Geom3[] = [];
     let genericDial: Geom3 | undefined;
     const r = editor.derivedVals.plateWidth / 2;
@@ -66,18 +75,18 @@ export class AssemblyService {
           Number(module.data[1]),
           Number(module.data[2]),
           Number(module.data[3]),
-          module.editorData
+          module.editorData,
         );
         output.push(slider);
       } else if (module.type === 1) {
         if (!genericDial) {
           genericDial = await this.addDialLayer2(0, 0, module.editorData);
         }
-        const translated = this.translateGeom(
+        const translated = await this.translateGeom(
           genericDial!,
           Number(module.data[0]) + r,
           0,
-          Number(module.data[1]) + r
+          Number(module.data[1]) + r,
         );
         output.push(translated);
       }
@@ -86,14 +95,17 @@ export class AssemblyService {
     return output;
   }
 
-  async buildLayer3(editor: EditorData, modules: TrackerModule[]): Promise<Geom3> {
+  async buildLayer3(
+    editor: EditorData,
+    modules: TrackerModule[],
+  ): Promise<Geom3> {
     const length = editor.boundingBox.maxX + 20 - editor.boundingBox.minX + 20;
     const height = editor.minWallWidth + editor.textDepth;
     const depth = editor.boundingBox.maxY + 20 - editor.boundingBox.minY + 20;
 
     const baseMesh = new THREE.Mesh(
       new THREE.BoxGeometry(length, height, depth),
-      new THREE.MeshStandardMaterial({ color: 0x00ffff })
+      new THREE.MeshStandardMaterial({ color: 0x00ffff }),
     );
     baseMesh.position.set(length / 2, -height / 2 + 5, depth / 2);
     baseMesh.updateMatrix();
@@ -108,7 +120,7 @@ export class AssemblyService {
           Number(module.data[1]),
           Number(module.data[2]),
           Number(module.data[3]),
-          module.editorData
+          module.editorData,
         );
         acc = this.bools.subtract(acc, slider);
       } else if (module.type === 1) {
@@ -116,7 +128,7 @@ export class AssemblyService {
           Number(module.data[0]),
           -height / 2 + 5 + 1,
           Number(module.data[1]),
-          module.editorData
+          module.editorData,
         );
         acc = this.bools.subtract(acc, dialWindow);
 
@@ -124,7 +136,7 @@ export class AssemblyService {
           Number(module.data[0]),
           -height / 2 + 5 + 1,
           Number(module.data[1]),
-          module.editorData
+          module.editorData,
         );
         acc = this.bools.subtract(acc, knobHole);
       } else if (module.type === 2) {
@@ -136,7 +148,7 @@ export class AssemblyService {
           Number(module.data[4]),
           Number(module.data[5]),
           module.editorData,
-          5
+          5,
         );
         acc = this.bools.subtract(acc, textResult.divot);
         acc = this.bools.union(acc, textResult.text);
@@ -157,13 +169,11 @@ export class AssemblyService {
     rotation: number,
     translateX: number,
     translateY: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const l = length * moduleInfo.derivedVals.segmentLength + 2;
     const w =
-      moduleInfo.derivedVals.sliderRadius * 2 +
-      2 +
-      2 * moduleInfo.partGapWidth;
+      moduleInfo.derivedVals.sliderRadius * 2 + 2 + 2 * moduleInfo.partGapWidth;
     const h =
       moduleInfo.partGapWidth +
       moduleInfo.minWallWidth +
@@ -190,8 +200,8 @@ export class AssemblyService {
             newX,
             magYTranslate,
             firstCylZ + i * moduleInfo.derivedVals.segmentLength,
-            moduleInfo
-          )
+            moduleInfo,
+          ),
         );
       }
     } else {
@@ -206,8 +216,8 @@ export class AssemblyService {
             firstCylX + i * moduleInfo.derivedVals.segmentLength,
             magYTranslate,
             newZ,
-            moduleInfo
-          )
+            moduleInfo,
+          ),
         );
       }
     }
@@ -219,7 +229,7 @@ export class AssemblyService {
   async addDialCircle(
     translationX: number,
     translationY: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const r = moduleInfo.derivedVals.plateWidth / 2 + moduleInfo.partGapWidth;
     const h =
@@ -244,10 +254,11 @@ export class AssemblyService {
       newZ +
         (moduleInfo.derivedVals.plateWidth / 2 -
           (1.5 + moduleInfo.magnetDiameter / 2)),
-      moduleInfo
+      moduleInfo,
     );
 
-    const knobR = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
+    const knobR =
+      moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
     const knobH = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
     const knobGeom = cylinderGeom3(knobR, knobH, [newX, magYTranslate, newZ]);
 
@@ -259,15 +270,18 @@ export class AssemblyService {
     rotation: number,
     translateX: number,
     translateY: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const l = moduleInfo.derivedVals.segmentLength + 2;
     const w = moduleInfo.derivedVals.sliderRadius * 2 + 2;
-    const h = moduleInfo.minWallWidth + moduleInfo.textDepth + moduleInfo.magnetHeight;
+    const h =
+      moduleInfo.minWallWidth + moduleInfo.textDepth + moduleInfo.magnetHeight;
     let sL: number, sD: number, newX: number, newZ: number;
     const bottomOfSliderCube = -h + 3;
     const magYTranslate =
-      -1 + bottomOfSliderCube + (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
+      -1 +
+      bottomOfSliderCube +
+      (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
 
     if (rotation === 0) {
       sL = w;
@@ -285,7 +299,11 @@ export class AssemblyService {
     const magCyl = await this.addMagCyl(newX, magYTranslate, newZ, moduleInfo);
 
     const knobR = moduleInfo.derivedVals.knobWidth / 2;
-    const knobGeom = cylinderGeom3(knobR, h + 5, [newX, (-h + 5) / 2 + 3, newZ]);
+    const knobGeom = cylinderGeom3(knobR, h + 5, [
+      newX,
+      (-h + 5) / 2 + 3,
+      newZ,
+    ]);
 
     const unioned = this.bools.union(sliderGeom, knobGeom);
     return this.bools.subtract(unioned, magCyl);
@@ -294,15 +312,18 @@ export class AssemblyService {
   async addDialLayer2(
     translationX: number,
     translationY: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const r = moduleInfo.derivedVals.plateWidth / 2;
-    const h = moduleInfo.minWallWidth + moduleInfo.magnetHeight + moduleInfo.textDepth;
+    const h =
+      moduleInfo.minWallWidth + moduleInfo.magnetHeight + moduleInfo.textDepth;
     const newX = translationX + r;
     const newZ = translationY + r;
     const bottomOfDialCircle = -h + 3;
     const magYTranslate =
-      -1 + bottomOfDialCircle + (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
+      -1 +
+      bottomOfDialCircle +
+      (moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1) / 2;
 
     let dialGeom = cylinderGeom3(r, h, [newX, -h / 2 + 3, newZ]);
 
@@ -320,13 +341,19 @@ export class AssemblyService {
         (moduleInfo.derivedVals.plateWidth / 2 -
           (1.5 + moduleInfo.magnetDiameter / 2)) *
           Math.sin(theta);
-      magCylArr.push(await this.addMagCyl(magXVal, magYTranslate, magZVal, moduleInfo));
+      magCylArr.push(
+        await this.addMagCyl(magXVal, magYTranslate, magZVal, moduleInfo),
+      );
     }
 
     const knobR = moduleInfo.derivedVals.knobWidth / 2;
     const knobH = moduleInfo.magnetHeight + h + 5;
-    const knobGeom = cylinderGeom3(knobR, knobH, [newX, -h / 2 + 3 + 2.5, newZ]);
- 
+    const knobGeom = cylinderGeom3(knobR, knobH, [
+      newX,
+      -h / 2 + 3 + 2.5,
+      newZ,
+    ]);
+
     for (const mag of magCylArr) {
       dialGeom = this.bools.subtract(dialGeom, mag);
     }
@@ -337,10 +364,12 @@ export class AssemblyService {
       newX,
       newZ,
       bottomOfDialCircle + h,
-      moduleInfo
+      moduleInfo,
     );
-    for (const divot of dialText.divots) dialGeom = this.bools.subtract(dialGeom, divot);
-    for (const digit of dialText.digits) dialGeom = this.bools.union(dialGeom, digit);
+    for (const divot of dialText.divots)
+      dialGeom = this.bools.subtract(dialGeom, divot);
+    for (const digit of dialText.digits)
+      dialGeom = this.bools.union(dialGeom, digit);
     return dialGeom;
   }
 
@@ -348,7 +377,7 @@ export class AssemblyService {
     dialCenterX: number,
     dialCenterZ: number,
     yTranslate: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): { divots: Geom3[]; digits: Geom3[] } {
     const l = moduleInfo.derivedVals.knobWidth + 3;
     const w = moduleInfo.derivedVals.knobWidth + 1;
@@ -356,8 +385,8 @@ export class AssemblyService {
     const newR = moduleInfo.derivedVals.knobWidth + l / 2;
     const angleDiffRads = (2 * Math.PI) / 10;
     const textRadius =
-        moduleInfo.derivedVals.plateWidth / 2 -
-        (3 * moduleInfo.derivedVals.knobWidth) / 4;
+      moduleInfo.derivedVals.plateWidth / 2 -
+      (3 * moduleInfo.derivedVals.knobWidth) / 4;
     const angleDiffDeg = 360 / 10;
     const textObj = { divots: new Array<Geom3>(), digits: new Array<Geom3>() };
 
@@ -385,7 +414,7 @@ export class AssemblyService {
         newWidth,
         l / 2,
         moduleInfo,
-        yTranslate - moduleInfo.textDepth / 2
+        yTranslate - moduleInfo.textDepth / 2,
       );
       this.three.bakeWorldMatrix(textMesh);
       textObj.digits.push(this.three.geom3FromThree(textMesh));
@@ -399,7 +428,7 @@ export class AssemblyService {
     rotation: number,
     translateX: number,
     translateY: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const l = length * moduleInfo.derivedVals.segmentLength + 2;
     const w =
@@ -422,7 +451,7 @@ export class AssemblyService {
     tX: number,
     tY: number,
     tZ: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const l = moduleInfo.derivedVals.knobWidth + 3;
     const w = moduleInfo.derivedVals.knobWidth + 1;
@@ -441,7 +470,7 @@ export class AssemblyService {
     tX: number,
     tY: number,
     tZ: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const r = moduleInfo.derivedVals.knobWidth / 2 + moduleInfo.partGapWidth;
     const h = moduleInfo.minWallWidth + moduleInfo.textDepth + 2;
@@ -460,7 +489,7 @@ export class AssemblyService {
     width: number,
     height: number,
     moduleInfo: EditorData,
-    translationY?: number
+    translationY?: number,
   ): Promise<{ text: Geom3; divot: Geom3 }> {
     const h = moduleInfo.textDepth;
     const loader = new FontLoader();
@@ -504,7 +533,7 @@ export class AssemblyService {
         translationX + divotXWidth / 2,
         -h / 2 + yPos,
         translationZ - (divotYWidth * 2) / 3,
-      ]
+      ],
     );
     return { text: textGeom, divot: divotGeom };
   }
@@ -517,7 +546,7 @@ export class AssemblyService {
     width: number,
     height: number,
     moduleInfo: EditorData,
-    translationY?: number
+    translationY?: number,
   ): THREE.Mesh {
     const h = moduleInfo.textDepth;
     const loader = new FontLoader();
@@ -555,7 +584,7 @@ export class AssemblyService {
     myText.position.set(
       translationX - modifier * Math.cos(zRot),
       -h / 2 + yPos,
-      translationZ + modifier * Math.sin(zRot)
+      translationZ + modifier * Math.sin(zRot),
     );
     myText.updateMatrix();
     return myText;
@@ -591,15 +620,22 @@ export class AssemblyService {
     tX: number,
     tY: number,
     tZ: number,
-    moduleInfo: EditorData
+    moduleInfo: EditorData,
   ): Promise<Geom3> {
     const r = moduleInfo.magnetDiameter / 2 + moduleInfo.partGapWidth;
     const h = moduleInfo.magnetHeight + moduleInfo.partGapWidth + 1;
     return cylinderGeom3(r, h, [tX, tY, tZ]);
   }
 
-  private translateGeom(g: Geom3, x: number, y: number, z: number): Geom3 {
-    const mesh = this.three.meshesFromGeom3(g, { color: 0xffffff })[0];
+  private async translateGeom(
+    g: Geom3,
+    x: number,
+    y: number,
+    z: number,
+  ): Promise<Geom3> {
+    const mesh = (await this.three.meshesFromGeom3(g, {
+      color: 0xffffff,
+    })[0]) as unknown as THREE.Mesh;
     mesh.position.set(x, y, z);
     mesh.updateMatrix();
     this.three.bakeWorldMatrix(mesh);

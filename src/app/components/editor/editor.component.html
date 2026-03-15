@@ -3,9 +3,7 @@
   (editorDataChanged)="updateEditorData($event)"
 ></app-d3container>
 @if (!previewVisible) {
-  <button mat-button (click)="showPreview()">
-    Generate 3D Model
-  </button>
+  <button mat-button (click)="showPreview()">Generate 3D Model</button>
 }
 @if (previewVisible) {
   <app-preview3d

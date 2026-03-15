@@ -20,8 +20,6 @@ import { saveAs } from 'file-saver';
 import { MatButtonModule } from '@angular/material/button';
 import { EditorData } from '../../interfaces/editor-data';
 import { TrackerModule, TextModule } from '../../interfaces/tracker-module';
-import { StlFilenames } from '../../interfaces/stl-filenames';
-import JSZip from 'jszip';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
@@ -50,10 +48,10 @@ import { zipSceneMeshes } from '../../data-access/cad/export.adapter';
 //import { SimplifyModifier } from 'three/examples/jsm/modifiers/SimplifyModifier.js';
 
 @Component({
-    selector: 'app-preview3d',
-    imports: [MatButtonModule],
-    templateUrl: './preview3d.component.html',
-    styleUrl: './preview3d.component.scss'
+  selector: 'app-preview3d',
+  imports: [MatButtonModule],
+  templateUrl: './preview3d.component.html',
+  styleUrl: './preview3d.component.scss',
 })
 export class Preview3dComponent implements OnInit, AfterViewInit {
   @ViewChildren('canvas') canvasses!: QueryList<ElementRef>;
@@ -113,7 +111,11 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   private threeAdapter = new ThreeAdapter();
   private boolAdapter = new BooleanAdapter({ three: this.threeAdapter });
   private textAdapter = new TextAdapter(this.threeAdapter);
-  private assembly = new AssemblyService(this.threeAdapter, this.boolAdapter, this.textAdapter);
+  private assembly = new AssemblyService(
+    this.threeAdapter,
+    this.boolAdapter,
+    this.textAdapter,
+  );
 
   private get canvas(): HTMLCanvasElement {
     return this.canvasRef.nativeElement;
@@ -153,7 +155,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
    * @private
    * @memberof EditorComponent
    */
-  private createScene() {
+  private async createScene() {
     //* Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
@@ -205,20 +207,32 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     } else {
       // Web workers are not supported in this environment.
       console.log('Web workers not allowed!');
-      this.assembly.buildBaseLayer1(this.editorData, this.modulesList).then((geom) => {
-        const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0x00ff00 });
-        this.scene.add(...meshes);
-      });
-      this.assembly.buildLayer2(this.editorData, this.modulesList).then((geoms) => {
-        for (const geom of geoms) {
-          const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0xffff00 });
+      this.assembly
+        .buildBaseLayer1(this.editorData, this.modulesList)
+        .then(async (geom) => {
+          const meshes = await this.threeAdapter.meshesFromGeom3(geom, {
+            color: 0x00ff00,
+          });
           this.scene.add(...meshes);
-        }
-      });
-      this.assembly.buildLayer3(this.editorData, this.modulesList).then((geom) => {
-        const meshes = this.threeAdapter.meshesFromGeom3(geom, { color: 0x00ffff });
-        this.scene.add(...meshes);
-      });
+        });
+      this.assembly
+        .buildLayer2(this.editorData, this.modulesList)
+        .then(async (geoms) => {
+          for (const geom of geoms) {
+            const meshes = await this.threeAdapter.meshesFromGeom3(geom, {
+              color: 0xffff00,
+            });
+            this.scene.add(...meshes);
+          }
+        });
+      this.assembly
+        .buildLayer3(this.editorData, this.modulesList)
+        .then(async (geom) => {
+          const meshes = await this.threeAdapter.meshesFromGeom3(geom, {
+            color: 0x00ffff,
+          });
+          this.scene.add(...meshes);
+        });
     }
   }
 
@@ -436,7 +450,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
       );
 
       //convert to stl then to three and add to scene
-      const mesh = this.threeAdapter.meshesFromGeom3(geometry, {
+      const mesh = await this.threeAdapter.meshesFromGeom3(geometry, {
         color: CommandHandler.getRandomArbitrary(0xaaaaaa, 0xffffff),
         debug: true,
       });
@@ -552,7 +566,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   }
 
   public async geoToThree(geo: Geom3): Promise<THREE.Mesh> {
-    const tjsGeo = this.threeAdapter.meshesFromGeom3(geo, {
+    const tjsGeo = await this.threeAdapter.meshesFromGeom3(geo, {
       color: 0xffff00,
       debug: true,
     });
@@ -561,6 +575,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
 
   public async generateLayer3TextExtrusionsTri() {
     await this.manifoldService.init();
+    console.log('Called generateLayer3TextExtrusionsForSomeReason');
     const charDepth = 2;
     let prevBBox: { min: Vec3; max: Vec3 } = {
       min: [0, 0, 0],
@@ -571,7 +586,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
         const svgPath = module['data'][3] as unknown as string;
-        const textMeshTri = this.textAdapter.shapesFromSvgPath(svgPath);
+        //const textMeshTri = this.textAdapter.shapesFromSvgPath(svgPath);
         const char: string = module['data'][4] as unknown as string;
         const ind: number = module['data'][6] as unknown as number;
         const extraPoints: CharShape[] = this.textAdapter.charShapesFromSvgPath(
@@ -595,7 +610,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         });
 
         //textModule['meshJSON'] = textMesh;
-        const textModule = module as TextModule;
+        //const textModule = module as TextModule;
         //console.log(textModule.data);*/
 
         const textMeshVertArr = this.textAdapter.meshesFromSvgPath(svgPath, {
@@ -704,18 +719,22 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
         this.batchDelete(unionedHulls);
       }
     }
-    const unionedLetterBlock = this.unionChainMani(unionedLetterBlocks);
-    const unionedRandomBlock = this.unionChainMani(unionedRandomBlocks);
-    let panel = this.manifoldService.wasm.Manifold.cube(
-      [100, 5, 100],
-      false,
-    ).translate([0, -5 - 0.1, 0]);
-    panel = this.manifoldService.csgSubtraction(panel, unionedRandomBlock);
-    panel.genus();
-    const iPanel = this.manifoldService.csgUnion(unionedLetterBlock, panel);
-    this.addMeshAndWireFrame(iPanel, true);
-    //this.addMeshAndWireFrame(unionedLetterBlock, true);
-    //console.log(this.modulesList);
+    if (unionedLetterBlocks.length > 0 && unionedRandomBlocks.length > 0) {
+      const unionedLetterBlock = this.unionChainMani(unionedLetterBlocks);
+      const unionedRandomBlock = this.unionChainMani(unionedRandomBlocks);
+      let panel = this.manifoldService.wasm.Manifold.cube(
+        [100, 5, 100],
+        false,
+      ).translate([0, -5 - 0.1, 0]);
+      panel = this.manifoldService.csgSubtraction(panel, unionedRandomBlock);
+      panel.genus();
+      const iPanel = this.manifoldService.csgUnion(unionedLetterBlock, panel);
+      this.addMeshAndWireFrame(iPanel, true);
+      //this.addMeshAndWireFrame(unionedLetterBlock, true);
+      //console.log(this.modulesList);
+    } else {
+      console.log('Unioned letter blocks or unioned random blocks empty');
+    }
   }
 
   public CharShapeGeosToManifolds(csGeos: CharShapeGeometry[]): Manifold[] {
@@ -981,7 +1000,7 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
   public generateLayer3TextMeshes(charDepth: number): void | THREE.Mesh[] {
     for (const module of this.modulesList) {
       if (module['type'] === 3) {
-        const textModule = module as TextModule;
+        //const textModule = module as TextModule;
         //console.log(textModule.data);
         const textMesh = this.textAdapter.meshesFromSvgPath(
           module['data'][3] as unknown as string,

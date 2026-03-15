@@ -61,7 +61,10 @@ export class TextAdapter {
   }
 
   /** Convenience: pass pre-parsed shapes (saves re-parsing if you reuse shapes). */
-  meshesFromShapes(shapes: THREE.Shape[], opts: ExtrudeOptions = {}): THREE.Mesh[] {
+  meshesFromShapes(
+    shapes: THREE.Shape[],
+    opts: ExtrudeOptions = {},
+  ): THREE.Mesh[] {
     const {
       depth = 1,
       steps = 2,
@@ -82,7 +85,11 @@ export class TextAdapter {
     };
 
     const material = debug
-      ? new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.65 })
+      ? new THREE.MeshBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.65,
+        })
       : new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 
     const meshes: THREE.Mesh[] = [];
@@ -109,7 +116,11 @@ export class TextAdapter {
    * Extract CharShape[] (your data format) from an SVG path.
    * Useful for Voronoi pipeline / GPU ops that need flat 2D coordinates.
    */
-  charShapesFromSvgPath(svgPath: string, char: string, index: number): CharShape[] {
+  charShapesFromSvgPath(
+    svgPath: string,
+    char: string,
+    index: number,
+  ): CharShape[] {
     const shapes = this.shapesFromSvgPath(svgPath);
     return shapes.map((shape) => {
       const pts = shape.extractPoints(5); // keep step consistent with your current code
@@ -125,10 +136,14 @@ export class TextAdapter {
   // Optional small utilities if you still use them elsewhere:
 
   /** Flatten shape + holes to [x,y] array (for D3, etc.). */
-  flattenShapeCoords(shape: { shape: THREE.Vec2[]; holes: THREE.Vec2[][] }): [number, number][] {
+  flattenShapeCoords(shape: {
+    shape: THREE.Vec2[];
+    holes: THREE.Vec2[][];
+  }): [number, number][] {
     const out: [number, number][] = [];
     for (const pt of shape.shape) out.push([pt.x, pt.y]);
-    for (const hole of shape.holes) for (const pt of hole) out.push([pt.x, pt.y]);
+    for (const hole of shape.holes)
+      for (const pt of hole) out.push([pt.x, pt.y]);
     return out;
   }
 
@@ -138,10 +153,12 @@ export class TextAdapter {
    */
   divotBoxFromBakedMesh(mesh: THREE.Mesh, extraDepth = 0): Geom3 {
     // Expect mesh already baked via three.bakeWorldMatrix()
-    const bbox = (mesh.geometry as THREE.BufferGeometry).boundingBox ?? (() => {
-      (mesh.geometry as THREE.BufferGeometry).computeBoundingBox();
-      return (mesh.geometry as THREE.BufferGeometry).boundingBox!;
-    })();
+    const bbox =
+      (mesh.geometry as THREE.BufferGeometry).boundingBox ??
+      (() => {
+        (mesh.geometry as THREE.BufferGeometry).computeBoundingBox();
+        return (mesh.geometry as THREE.BufferGeometry).boundingBox!;
+      })();
 
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
@@ -155,7 +172,7 @@ export class TextAdapter {
 
     const divot = new THREE.Mesh(
       new THREE.BoxGeometry(lx, ly, lz),
-      new THREE.MeshBasicMaterial({ color: 0x0000ff })
+      new THREE.MeshBasicMaterial({ color: 0x0000ff }),
     );
     // put its center where the baked text’s center lies, then push slightly “down” (negative Y) if needed
     divot.position.set(center.x, center.y - extraDepth / 2, center.z);

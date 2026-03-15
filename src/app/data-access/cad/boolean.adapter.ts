@@ -3,16 +3,17 @@ import type { Geom3 } from '@jscad/modeling/src/geometries/types';
 import * as jscadBool from '@jscad/modeling/src/operations/booleans';
 import * as THREE from 'three';
 import { ThreeAdapter, ManifoldBridge } from './three.adapter';
+import { Manifold } from 'manifold-3d';
 
 export type BooleanEngine = 'jscad' | 'manifold';
 
 /** Minimal bridge the adapter needs if you want Manifold-backed booleans. */
 export interface ManifoldOps extends ManifoldBridge {
-  union(a: any, b: any): any;
-  subtract(a: any, b: any): any;
-  intersect(a: any, b: any): any;
+  union(a: Manifold, b: Manifold): Manifold;
+  subtract(a: Manifold, b: Manifold): Manifold;
+  intersect(a: Manifold, b: Manifold): Manifold;
   /** Optional: called on results to clean topology (e.g., m.genus()) */
-  finalize?(m: any): any;
+  finalize?(m: Manifold): Manifold;
 }
 
 export class BooleanAdapter {
@@ -20,7 +21,11 @@ export class BooleanAdapter {
   private manifold?: ManifoldOps;
   private three: ThreeAdapter;
 
-  constructor(opts: { engine?: BooleanEngine; manifold?: ManifoldOps; three: ThreeAdapter }) {
+  constructor(opts: {
+    engine?: BooleanEngine;
+    manifold?: ManifoldOps;
+    three: ThreeAdapter;
+  }) {
     this.engine = opts.engine ?? (opts.manifold ? 'manifold' : 'jscad');
     this.manifold = opts.manifold;
     this.three = opts.three;
@@ -30,21 +35,21 @@ export class BooleanAdapter {
     if (this.engine === 'manifold' && this.manifold) {
       return this.unionManifold(parts);
     }
-    return jscadBool.union(parts as any) as unknown as Geom3;
+    return jscadBool.union(parts) as unknown as Geom3;
   }
 
   subtract(a: Geom3, b: Geom3): Geom3 {
     if (this.engine === 'manifold' && this.manifold) {
       return this.subtractManifold(a, b);
     }
-    return jscadBool.subtract(a as any, b as any) as unknown as Geom3;
+    return jscadBool.subtract(a, b) as unknown as Geom3;
   }
 
   intersect(...parts: Geom3[]): Geom3 {
     if (this.engine === 'manifold' && this.manifold) {
       return this.intersectManifold(parts);
     }
-    return jscadBool.intersect(parts as any) as unknown as Geom3;
+    return jscadBool.intersect(parts) as unknown as Geom3;
   }
 
   // ---------- Manifold-backed path ----------
@@ -77,14 +82,18 @@ export class BooleanAdapter {
   }
 
   // Convert through Three: Geom3 -> THREE -> Manifold -> (ops) -> THREE -> Geom3
-  private geom3ToManifold(g: Geom3): any {
+  private geom3ToManifold(g: Geom3): Manifold {
     const meshes = this.three.meshesFromGeom3(g, { color: 0xffffff });
-    if (meshes.length !== 1) throw new Error('Expected geom3 -> single mesh for manifold conversion');
+    if (meshes.length !== 1)
+      throw new Error('Expected geom3 -> single mesh for manifold conversion');
     return this.manifold!.threeToManifold(meshes[0]);
   }
 
-  private manifoldToGeom3(m: any): Geom3 {
-    const mesh = this.manifold!.manifoldToThree(m, new THREE.MeshStandardMaterial({ color: 0xffffff }));
+  private manifoldToGeom3(m: Manifold): Geom3 {
+    const mesh = this.manifold!.manifoldToThree(
+      m,
+      new THREE.MeshStandardMaterial({ color: 0xffffff }),
+    );
     return this.three.geom3FromThree(mesh);
   }
 }

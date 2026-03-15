@@ -7,14 +7,10 @@ import { TrackerModule } from '../../interfaces/tracker-module';
 import { EditorData } from '../../interfaces/editor-data';
 
 @Component({
-    selector: 'app-editor',
-    imports: [
-    Preview3dComponent,
-    D3containerComponent,
-    MatButtonModule
-],
-    templateUrl: './editor.component.html',
-    styleUrl: './editor.component.scss'
+  selector: 'app-editor',
+  imports: [Preview3dComponent, D3containerComponent, MatButtonModule],
+  templateUrl: './editor.component.html',
+  styleUrl: './editor.component.scss',
 })
 export class EditorComponent {
   public previewVisible: boolean = false;
@@ -33,7 +29,7 @@ export class EditorComponent {
 
   public updateEditorData(e: EditorData) {
     this.editorData = e;
-    //console.log('something changed in editor settings!');
-    //console.log(e);
+    console.log('something changed in editor settings!');
+    console.log(e);
   }
 }

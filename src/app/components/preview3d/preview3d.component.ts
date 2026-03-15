@@ -617,6 +617,12 @@ export class Preview3dComponent implements OnInit, AfterViewInit {
           depth: charDepth,
           yTranslate: -(charDepth / 2 + 0.1),
         });
+
+        /*textMeshVertArr = this.generateTextMeshesForIntersect(
+          module['data'][3] as unknown as string,
+          textModule,
+          charDepth,
+        );*/
         const textVertMani: Manifold[] = [];
         textMeshVertArr.forEach((char) => {
           const vertMani = this.manifoldService.threeMesh2manifold(char);

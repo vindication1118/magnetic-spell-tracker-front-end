@@ -75,8 +75,8 @@ export class TextAdapter {
     } = opts;
 
     const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-      steps,
-      depth,
+      steps: steps,
+      depth: depth,
       bevelEnabled: false,
       bevelThickness: 0,
       bevelSize: 0,
@@ -105,7 +105,7 @@ export class TextAdapter {
 
       // Bake transforms so the geometry is “final”
       mesh.updateMatrix();
-      this.three.bakeWorldMatrix(mesh);
+      //this.three.bakeWorldMatrix(mesh);
 
       meshes.push(mesh);
     }

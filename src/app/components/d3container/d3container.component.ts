@@ -240,7 +240,7 @@ export class D3containerComponent implements OnInit, AfterViewInit {
     //this.addNumberDialInstance(60, 20);
     //this.addNumberDialInstance(100, 20);
     //this.addText(0, 60, 10, 'Life Total', 8);
-    //this.addPathText(0, 5, 10, 'abcdef', 8);
+    this.addPathText(0, 5, 10, 'abcdef', 8);
     //this.addPathText(0, 5, 30, 'ghijkl', 8);
     //this.addPathText(0, 5, 30, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 8);
     //this.addPathText(0, 5, 50, '0123456789', 8);
